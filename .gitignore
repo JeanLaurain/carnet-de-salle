@@ -32,6 +32,7 @@ coverage/
 .env.*
 !.env.example
 deploy/runner/data/
+db/import/
 *.pfx
 *.p8
 appsettings.*.local.json

@@ -16,6 +16,11 @@
    Documentation : docs/base-de-donnees.md
    ============================================================================= */
 
+/* Requis pour l'index filtré (sqlcmd les désactive par défaut ; SqlClient/EF Core les activent). */
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
 IF SCHEMA_ID(N'app') IS NULL EXEC (N'CREATE SCHEMA app AUTHORIZATION dbo');
 GO
 

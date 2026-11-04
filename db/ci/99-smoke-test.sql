@@ -1,6 +1,8 @@
 /* CI uniquement : insère un jeu de données minimal puis supprime l'utilisateur
    pour vérifier les contraintes et les suppressions en cascade. */
 SET NOCOUNT ON;
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
 SET XACT_ABORT ON;
 DECLARE @u uniqueidentifier = NEWID();
 INSERT dbo.AspNetUsers (Id, UserName) VALUES (@u, N'ci@example.test');

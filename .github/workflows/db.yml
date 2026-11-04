@@ -53,7 +53,7 @@ jobs:
         run: |
           for f in 00.sql schema.sql 99.sql; do
             echo "::group::$f"
-            docker exec -e SQLCMDPASSWORD ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa -d CarnetDeSalle -i "/tmp/$f"
+            docker exec -e SQLCMDPASSWORD ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -b -I -S localhost -U sa -d CarnetDeSalle -i "/tmp/$f"
             echo "::endgroup::"
           done
 
