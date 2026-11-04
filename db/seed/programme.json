@@ -1,0 +1,313 @@
+{
+  "version": 7,
+  "date": "2026-11-04",
+  "nom": "Full body débutant A/B",
+  "objectif": "Perdre du gras et prendre du muscle",
+  "frequence": "1 à 2 séances par semaine",
+  "salle": "One Fitness",
+  "reposSec": 90,
+  "echauffement": {
+    "titre": "Vélo ou rameur",
+    "detail": "5 à 10 min à allure facile, pour monter doucement en température.",
+    "minutes": 5,
+    "minutesEstimees": 8,
+    "met": 4
+  },
+  "changements": [
+    "Nouvel onglet Repas : décris ton plat ou ajoute une capture de la recette, Claude calcule les kcal et les protéines, et tu vois le total du jour face à ton objectif.",
+    "Chaque séance affiche une estimation des kcal brûlées, et un graphique compare sur 14 jours ce que tu manges et ce que tu dépenses."
+  ],
+  "seances": [
+    {
+      "code": "A",
+      "nom": "Séance A",
+      "dureeMin": 55,
+      "ordre": 1,
+      "cardio": {
+        "nom": "Tapis de course incliné",
+        "detail": "Marche rapide, pente 6 à 10 %, 5 à 6 km/h. Tu dois pouvoir parler, pas chanter.",
+        "minutes": 15,
+        "met": 7
+      },
+      "exercices": [
+        {
+          "ordre": 1,
+          "code": "presse",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 5,
+          "reposSec": null
+        },
+        {
+          "ordre": 2,
+          "code": "dc_machine",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 2.5,
+          "reposSec": null
+        },
+        {
+          "ordre": 3,
+          "code": "tirage",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 2.5,
+          "reposSec": null
+        },
+        {
+          "ordre": 4,
+          "code": "leg_curl",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 2.5,
+          "reposSec": null
+        },
+        {
+          "ordre": 5,
+          "code": "planche",
+          "series": 3,
+          "repsMin": null,
+          "repsMax": null,
+          "secMin": 20,
+          "secMax": 40,
+          "incrementKg": null,
+          "reposSec": 60
+        }
+      ]
+    },
+    {
+      "code": "B",
+      "nom": "Séance B",
+      "dureeMin": 55,
+      "ordre": 2,
+      "cardio": {
+        "nom": "Vélo",
+        "detail": "Résistance modérée, cadence régulière. Essoufflé, mais capable de parler.",
+        "minutes": 15,
+        "met": 6
+      },
+      "exercices": [
+        {
+          "ordre": 1,
+          "code": "hack_squat",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 5,
+          "reposSec": null
+        },
+        {
+          "ordre": 2,
+          "code": "rowing_machine",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 2.5,
+          "reposSec": null
+        },
+        {
+          "ordre": 3,
+          "code": "dev_epaules",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 2.5,
+          "reposSec": null
+        },
+        {
+          "ordre": 4,
+          "code": "hip_thrust_machine",
+          "series": 3,
+          "repsMin": 10,
+          "repsMax": 12,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 5,
+          "reposSec": null
+        },
+        {
+          "ordre": 5,
+          "code": "crunch_machine",
+          "series": 3,
+          "repsMin": 12,
+          "repsMax": 15,
+          "secMin": null,
+          "secMax": null,
+          "incrementKg": 2.5,
+          "reposSec": 60
+        }
+      ]
+    }
+  ],
+  "exercices": [
+    {
+      "code": "presse",
+      "nom": "Presse à cuisses",
+      "muscles": "Cuisses · fessiers",
+      "mesure": "load",
+      "conseils": [
+        "Pieds à largeur d'épaules, au milieu de la plateforme.",
+        "Descends jusqu'à environ 90° aux genoux, sans que le bas du dos décolle du dossier.",
+        "Pousse dans les talons et garde les genoux légèrement fléchis en haut."
+      ],
+      "alternative": "Hack squat, ou goblet squat avec un haltère.",
+      "alternativeLabel": null,
+      "videoRecherche": "presse à cuisses technique débutant",
+      "illustration": "presse"
+    },
+    {
+      "code": "dc_machine",
+      "nom": "Développé couché à la machine",
+      "muscles": "Pectoraux · triceps · épaules",
+      "mesure": "load",
+      "conseils": [
+        "Règle le siège pour que les poignées arrivent au milieu de la poitrine.",
+        "Serre les omoplates et garde-les collées au dossier.",
+        "Pousse sans verrouiller les coudes, puis reviens en 2 secondes."
+      ],
+      "alternative": "Développé couché avec haltères sur banc plat.",
+      "alternativeLabel": null,
+      "videoRecherche": "chest press machine technique débutant",
+      "illustration": "dc_machine"
+    },
+    {
+      "code": "tirage",
+      "nom": "Tirage vertical à la poulie",
+      "muscles": "Dos · biceps",
+      "mesure": "load",
+      "conseils": [
+        "Cuisses bloquées sous les boudins, mains un peu plus larges que les épaules.",
+        "Tire la barre vers le haut de la poitrine en sortant légèrement le torse.",
+        "Pense à ramener les coudes vers le bas, sans te balancer en arrière."
+      ],
+      "alternative": "Rowing assis à la poulie, ou machine de tirage.",
+      "alternativeLabel": null,
+      "videoRecherche": "tirage vertical poulie haute technique",
+      "illustration": "tirage"
+    },
+    {
+      "code": "leg_curl",
+      "nom": "Leg curl assis",
+      "muscles": "Arrière des cuisses (ischios)",
+      "mesure": "load",
+      "conseils": [
+        "Aligne tes genoux avec l'axe de rotation de la machine.",
+        "Place le boudin juste au-dessus des chevilles.",
+        "Ramène les talons sous toi, puis remonte lentement."
+      ],
+      "alternative": "Leg curl allongé, ou pont fessier au sol.",
+      "alternativeLabel": null,
+      "videoRecherche": "leg curl assis technique",
+      "illustration": "leg_curl"
+    },
+    {
+      "code": "planche",
+      "nom": "Gainage planche",
+      "muscles": "Abdos · tronc",
+      "mesure": "time",
+      "conseils": [
+        "Avant-bras au sol, coudes sous les épaules.",
+        "Corps aligné de la tête aux talons, fesses serrées.",
+        "Respire normalement. Arrête la série dès que le bas du dos se creuse."
+      ],
+      "alternative": "Planche sur les genoux si c'est trop dur au début.",
+      "alternativeLabel": null,
+      "videoRecherche": "gainage planche bonne posture",
+      "illustration": "planche"
+    },
+    {
+      "code": "hack_squat",
+      "nom": "Hack squat",
+      "muscles": "Cuisses · fessiers",
+      "mesure": "load",
+      "conseils": [
+        "Dos et bassin bien collés au dossier, épaules calées sous les épaulières.",
+        "Pieds à largeur d'épaules, au milieu de la plateforme, pointes légèrement tournées vers l'extérieur.",
+        "Débloque les sécurités, puis descends lentement jusqu'à environ 90° aux genoux, genoux dans l'axe des pieds.",
+        "Remonte en poussant dans les talons, sans verrouiller les genoux. Remets les sécurités à la fin de la série."
+      ],
+      "alternative": "Goblet squat avec un haltère, ou presse à cuisses.",
+      "alternativeLabel": null,
+      "videoRecherche": "hack squat machine technique débutant",
+      "illustration": "hack_squat"
+    },
+    {
+      "code": "rowing_machine",
+      "nom": "Rowing assis à la machine",
+      "muscles": "Dos · biceps",
+      "mesure": "load",
+      "conseils": [
+        "Règle le siège pour que les poignées arrivent à hauteur du bas de la poitrine.",
+        "Poitrine collée au coussin, tire les coudes vers l'arrière en serrant les omoplates.",
+        "Reviens bras tendus, lentement, sans décoller la poitrine du coussin."
+      ],
+      "alternative": "Rowing assis à la poulie basse.",
+      "alternativeLabel": null,
+      "videoRecherche": "seated row machine technique débutant",
+      "illustration": "rowing_machine"
+    },
+    {
+      "code": "dev_epaules",
+      "nom": "Développé épaules à la machine",
+      "muscles": "Épaules · triceps",
+      "mesure": "load",
+      "conseils": [
+        "Règle le siège pour que les poignées partent à hauteur des épaules.",
+        "Dos collé au dossier, pousse au-dessus de la tête sans cambrer.",
+        "Redescends lentement jusqu'à hauteur des épaules."
+      ],
+      "alternative": "Développé épaules assis avec haltères.",
+      "alternativeLabel": null,
+      "videoRecherche": "shoulder press machine technique",
+      "illustration": "dev_epaules"
+    },
+    {
+      "code": "hip_thrust_machine",
+      "nom": "Hip thrust à la machine",
+      "muscles": "Fessiers · ischios",
+      "mesure": "load",
+      "conseils": [
+        "Dos contre le dossier, le coussin (ou la ceinture) posé sur le haut des hanches.",
+        "Pieds à plat, largeur de hanches, placés pour que les tibias soient verticaux en haut du mouvement.",
+        "Pousse dans les talons jusqu'à aligner épaules, hanches et genoux. Serre les fessiers 1 seconde, sans cambrer, puis redescends lentement."
+      ],
+      "alternative": "Machine à fessiers, ou hip thrust sur banc avec un disque sur les hanches.",
+      "alternativeLabel": null,
+      "videoRecherche": "hip thrust machine technique",
+      "illustration": "hip_thrust_machine"
+    },
+    {
+      "code": "crunch_machine",
+      "nom": "Crunch à la machine",
+      "muscles": "Abdos",
+      "mesure": "load",
+      "conseils": [
+        "Règle le siège pour que les poignées (ou le coussin) arrivent au niveau des épaules.",
+        "Enroule le buste vers l'avant en rapprochant les côtes du bassin, comme pour te rouler en boule.",
+        "Ce sont les abdos qui travaillent, pas les bras. Remonte lentement sans laisser la charge retomber."
+      ],
+      "alternative": "Dead bug ou crunch au sol.",
+      "alternativeLabel": null,
+      "videoRecherche": "crunch machine abdos technique",
+      "illustration": "crunch_machine"
+    }
+  ]
+}

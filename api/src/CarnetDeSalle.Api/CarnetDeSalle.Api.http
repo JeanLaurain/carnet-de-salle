@@ -1,6 +1,10 @@
-@CarnetDeSalle.Api_HostAddress = http://localhost:5113
+@api = http://localhost:5113
 
-GET {{CarnetDeSalle.Api_HostAddress}}/weatherforecast/
+GET {{api}}/api/health
+
+###
+
+GET {{api}}/api/version
 Accept: application/json
 
 ###

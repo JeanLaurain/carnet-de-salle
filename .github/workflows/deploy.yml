@@ -1,0 +1,169 @@
+# Construit les images, les publie sur GitHub Container Registry, puis déploie sur le NAS
+# grâce au runner auto-hébergé (label « nas »). Le NAS n'a besoin d'aucun port entrant.
+#
+# - push sur main (api, web, deploy) : tests -> images sha-xxxxxxx + latest -> déploiement
+# - lancement manuel avec un tag (ex. sha-1a2b3c4) : redéploie une version existante (retour arrière)
+# - le déploiement ne tourne que si la variable de dépôt DEPLOY_ENABLED vaut "true"
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ["api/**", "web/**", "deploy/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag existant à redéployer (ex. sha-1a2b3c4). Vide : construire et déployer ce commit."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  IMAGE_PREFIX: ghcr.io/jeanlaurain/carnet-de-salle
+
+jobs:
+  api:
+    if: inputs.image_tag == ''
+    uses: ./.github/workflows/api.yml
+
+  web:
+    if: inputs.image_tag == ''
+    uses: ./.github/workflows/web.yml
+
+  images:
+    name: Image ${{ matrix.component }}
+    needs: [api, web]
+    if: inputs.image_tag == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [api, web]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.component }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.component }}
+          file: ${{ matrix.component }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  deploy:
+    name: Déployer sur le NAS
+    needs: [images]
+    if: >-
+      always() && vars.DEPLOY_ENABLED == 'true' &&
+      (needs.images.result == 'success' || (needs.images.result == 'skipped' && inputs.image_tag != ''))
+    runs-on: [self-hosted, nas]
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://${{ vars.APP_DOMAIN }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: deploy
+
+      - name: Version à déployer
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="sha-${GITHUB_SHA::7}"; fi
+          echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Déploiement de $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Vérifier le NAS
+        run: |
+          test -n "$DEPLOY_DIR" || { echo "::error::Variable de dépôt DEPLOY_DIR manquante"; exit 1; }
+          test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env manquant (modèle : deploy/.env.example)"; exit 1; }
+          if ! docker compose version >/dev/null 2>&1; then
+            echo "Installation du plugin docker compose pour le runner"
+            mkdir -p ~/.docker/cli-plugins
+            curl -fsSL "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64" -o ~/.docker/cli-plugins/docker-compose
+            chmod +x ~/.docker/cli-plugins/docker-compose
+          fi
+          docker compose version
+
+      - name: Copier la configuration
+        run: |
+          cp deploy/docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
+          mkdir -p "$DEPLOY_DIR/sql"
+          cp deploy/sql/*.sql "$DEPLOY_DIR/sql/"
+          cp deploy/backup.sh "$DEPLOY_DIR/backup.sh"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Déployer
+        working-directory: ${{ vars.DEPLOY_DIR }}
+        run: |
+          set -eu
+          TAG="$IMAGE_TAG"
+          set -a; . ./.env; set +a
+          export IMAGE_TAG="$TAG"
+          docker compose pull --quiet
+          docker compose up -d --wait db
+          docker compose exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
+            -v DbName="${DB_NAME:-CarnetDeSalle}" AppUser="${DB_APP_USER:-carnet_app}" AppPassword="$DB_APP_PASSWORD" \
+            -i /opt/carnet/sql/init-db.sql
+          docker compose --profile tools run --rm migrate
+          docker compose up -d --remove-orphans api web
+
+      - name: Vérifier que l'appli répond
+        working-directory: ${{ vars.DEPLOY_DIR }}
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose exec -T web wget -qO- http://127.0.0.1:8080/api/health; then echo; echo "OK"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::L'appli ne répond pas sur /api/health"
+          exit 1
+
+      - name: Journaux en cas d'échec
+        if: failure()
+        working-directory: ${{ vars.DEPLOY_DIR }}
+        run: |
+          docker compose ps || true
+          docker compose logs --tail 100 api web || true
+
+      - name: Nettoyer les anciennes images
+        if: success()
+        run: docker image prune -f

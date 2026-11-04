@@ -1,0 +1,19 @@
+# SQL Server pour développer en local (Docker Desktop).
+#   docker compose -f docker-compose.dev.yml up -d
+# Chaîne de connexion : api/src/CarnetDeSalle.Api/appsettings.Development.json
+name: carnet-dev
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: DevPassw0rd_2026x   # base locale uniquement
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-dev:/var/opt/mssql
+
+volumes:
+  mssql-dev:

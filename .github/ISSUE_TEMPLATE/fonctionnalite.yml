@@ -1,0 +1,22 @@
+name: Fonctionnalité
+description: Une nouvelle fonctionnalité ou une amélioration
+labels: ["type: fonctionnalité"]
+body:
+  - type: textarea
+    id: objectif
+    attributes:
+      label: Objectif
+      description: Ce que je veux pouvoir faire, et pourquoi.
+    validations:
+      required: true
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Étapes
+      description: Le découpage technique (API, base, front).
+  - type: textarea
+    id: criteres
+    attributes:
+      label: Critères d'acceptation
+      value: |
+        - [ ]

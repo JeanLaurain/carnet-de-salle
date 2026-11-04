@@ -1,0 +1,29 @@
+# Runner GitHub Actions auto-hébergé sur le NAS (déploiement sans ouvrir de port entrant).
+# Il se connecte lui-même à GitHub et pilote Docker sur le NAS via le socket.
+#
+# Installation : docs/deploiement-nas.md, étape « Runner ».
+#   cd /volume1/docker/carnet-de-salle/runner
+#   sudo docker compose up -d
+#
+# Sécurité : ce conteneur a accès à Docker, donc au NAS. Il ne sert qu'à ce dépôt PRIVÉ,
+# et seuls les jobs de déploiement de la branche main l'utilisent (label « nas »).
+
+name: carnet-runner
+
+services:
+  runner:
+    image: myoung34/github-runner:ubuntu-noble
+    restart: unless-stopped
+    environment:
+      REPO_URL: https://github.com/JeanLaurain/carnet-de-salle
+      RUNNER_SCOPE: repo
+      ACCESS_TOKEN: ${GITHUB_PAT:?jeton GitHub à définir dans runner/.env}
+      RUNNER_NAME: nas-synology
+      LABELS: nas
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner/data
+      DISABLE_AUTO_UPDATE: "false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # même chemin dans le conteneur et sur le NAS : docker compose résout les volumes côté NAS
+      - /volume1/docker/carnet-de-salle:/volume1/docker/carnet-de-salle
+      - ./data:/runner/data

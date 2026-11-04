@@ -1,0 +1,19 @@
+name: Bug
+description: Quelque chose ne marche pas comme prévu
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: constat
+    attributes:
+      label: Ce qui se passe
+    validations:
+      required: true
+  - type: textarea
+    id: attendu
+    attributes:
+      label: Ce qui devrait se passer
+  - type: textarea
+    id: reproduire
+    attributes:
+      label: Pour reproduire
+      description: Appareil (iPhone, PC...), navigateur ou appli installée, étapes.

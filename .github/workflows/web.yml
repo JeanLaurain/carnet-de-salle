@@ -1,0 +1,45 @@
+name: Web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/web.yml"]
+  pull_request:
+    paths: ["web/**", ".github/workflows/web.yml"]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build et tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Installation
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Tests unitaires
+        run: npm test -- --watch=false
+
+      - name: Build de production
+        run: npm run build
+
+      - name: Rapport de taille
+        if: always()
+        run: du -sh dist/*/browser 2>/dev/null || true
