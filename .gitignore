@@ -1,0 +1,41 @@
+# --- .NET / Visual Studio ---
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.rsuser
+*.userprefs
+TestResults/
+coverage*.xml
+*.trx
+artifacts/
+publish/
+efbundle*
+
+# --- Rider / VS Code ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# --- Node / Angular ---
+node_modules/
+dist/
+.angular/
+coverage/
+
+# --- Secrets et données locales ---
+.env
+.env.*
+!.env.example
+deploy/runner/data/
+*.pfx
+*.p8
+appsettings.*.local.json
+
+# --- OS ---
+.DS_Store
+Thumbs.db
