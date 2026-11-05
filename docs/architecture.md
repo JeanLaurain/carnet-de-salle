@@ -18,7 +18,7 @@ flowchart LR
         subgraph Docker[Container Manager : projet carnet-de-salle]
           WEB[web : nginx<br/>Angular + /api]
           API[api : ASP.NET Core 10]
-          DB[(db : SQL Server 2025 Express)]
+          DB[(db : SQL Server 2022 Express)]
         end
         UPD[update.sh<br/>toutes les 5 min]
       end
@@ -91,7 +91,7 @@ carnet-de-salle/
 | Sujet | Choix | Pourquoi |
 |---|---|---|
 | API | ASP.NET Core 10 (LTS), minimal API, EF Core 10 | ton choix ; LTS jusqu'en novembre 2028 |
-| Base | SQL Server 2025 Express en conteneur | gratuit en production, limite de 50 Go largement suffisante |
+| Base | SQL Server 2022 Express en conteneur | gratuit en production, limite de 10 Go par base largement suffisante ; la 2025 plante au démarrage sur le processeur du NAS |
 | Front | Angular récent (composants standalone, signals), PWA | ton choix ; installable sur l'iPhone |
 | Auth | Identity + cookie, Google, Apple, passkeys | voir [authentification.md](authentification.md) |
 | Images | GitHub Container Registry (privé) | gratuit, lié au dépôt |

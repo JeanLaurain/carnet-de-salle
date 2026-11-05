@@ -26,12 +26,14 @@ df -T /volume1 | tail -n 1   # système de fichiers : btrfs ou ext4
 
 Puis **tester SQL Server pour de vrai**, sur le volume qui gardera la base. Microsoft ne prend officiellement en charge qu'ext4 et XFS : sur un volume Btrfs (le choix par défaut de Synology), ce test dit si ça marche chez toi. Il télécharge l'image (environ 1,5 Go), qui resservira au premier déploiement.
 
+Le projet utilise **SQL Server 2022** : la 2025 plante dès son lancement sur le processeur du NAS (`Segmentation fault` dans `launch_sqlservr.sh`), alors que la 2022 y démarre.
+
 ```sh
 mkdir -p /volume1/docker/mssql-test && chown 10001:0 /volume1/docker/mssql-test
 docker run -d --name mssql-test \
   -e ACCEPT_EULA=Y -e MSSQL_PID=Express -e 'MSSQL_SA_PASSWORD=Test-Carnet#2026' \
   -v /volume1/docker/mssql-test:/var/opt/mssql \
-  mcr.microsoft.com/mssql/server:2025-latest
+  mcr.microsoft.com/mssql/server:2022-latest
 docker logs -f mssql-test     # attendre « SQL Server is now ready for client connections », puis Ctrl+C
 docker rm -f mssql-test && rm -rf /volume1/docker/mssql-test
 ```
@@ -39,7 +41,8 @@ docker rm -f mssql-test && rm -rf /volume1/docker/mssql-test
 | Résultat | Suite |
 |---|---|
 | « SQL Server is now ready for client connections » | parfait |
-| le conteneur s'arrête sur une erreur | refaire le test avec `mcr.microsoft.com/mssql/server:2022-latest` ; si ça marche, mettre `MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-latest` dans le `.env` (étape 3) **avant** le premier déploiement (une base créée en 2025 ne revient pas en 2022). Sinon, garder les 30 dernières lignes : `docker logs --tail 30 mssql-test` |
+| le conteneur s'arrête sur une erreur | garder les 30 dernières lignes (`docker logs --tail 30 mssql-test`) et le journal interne (`tail -n 30 /volume1/docker/mssql-test/log/errorlog`) |
+| rien après « This container is running as user mssql » | normal pendant une à trois minutes sur un processeur de NAS |
 
 ## 2. Préparer DSM
 

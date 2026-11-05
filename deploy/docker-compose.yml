@@ -14,9 +14,9 @@ x-api-image: &api-image ghcr.io/jeanlaurain/carnet-de-salle-api:${IMAGE_TAG:-lat
 
 services:
   db:
-    # Vide dans .env : SQL Server 2025. À choisir avant le premier déploiement (une base créée en 2025
-    # ne peut pas revenir en 2022).
-    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest}
+    # SQL Server 2022 : la 2025 plante au démarrage sur le processeur du NAS (docs/deploiement-nas.md,
+    # étape 1). MSSQL_IMAGE dans .env pour en changer ; une base 2022 peut passer en 2025, pas l'inverse.
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"

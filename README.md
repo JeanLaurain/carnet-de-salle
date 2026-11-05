@@ -5,7 +5,7 @@
 Appli perso de suivi de musculation, de repas et de poids, installable sur l'iPhone. Elle reprend l'artefact Claude « Carnet de salle » ([copie de référence](docs/reference/carnet-de-salle-artefact.html)) sous forme de vraie appli :
 
 - **API** : ASP.NET Core 10 (C#), EF Core, ASP.NET Core Identity
-- **Base** : SQL Server 2025 Express
+- **Base** : SQL Server 2022 Express
 - **Front** : Angular, en PWA (installable depuis Safari)
 - **Hébergement** : NAS Synology (DSM 7.4, Container Manager), derrière le reverse proxy DSM, sur `fitness.jeanlaura.in`
 - **CI/CD** : GitHub Actions, images testées puis publiées sur GitHub Container Registry, mise à jour automatique tirée par le NAS (aucun port entrant)
