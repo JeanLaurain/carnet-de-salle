@@ -26,22 +26,30 @@ df -T /volume1 | tail -n 1   # système de fichiers : btrfs ou ext4
 
 Puis **tester SQL Server pour de vrai**, sur le volume qui gardera la base. Microsoft ne prend officiellement en charge qu'ext4 et XFS : sur un volume Btrfs (le choix par défaut de Synology), ce test dit si ça marche chez toi. Il télécharge l'image (environ 1,5 Go), qui resservira au premier déploiement.
 
-Le projet utilise **SQL Server 2022** : la 2025 plante dès son lancement sur le processeur du NAS (`Segmentation fault` dans `launch_sqlservr.sh`), alors que la 2022 y démarre.
+Le projet utilise **SQL Server 2019**, la seule version qui tient sur ce NAS (noyau Synology 4.4.302+, processeur sans AVX) :
+
+| Version | Sur le NAS |
+|---|---|
+| 2025 | plante dès le lancement : `Segmentation fault` dans `launch_sqlservr.sh` |
+| 2022 | démarre, puis se fige pendant la mise à jour de ses bases système : `appears to be non-yielding`, 55 à 60 s passées dans le noyau, redémarrage en boucle. Ni `chattr +C`, ni `seccomp=unconfined` n'y changent rien |
+| 2019 | démarre, crée une base et reste stable |
+
+Une commande par ligne (les commandes sur plusieurs lignes se mélangent parfois au collage) :
 
 ```sh
-mkdir -p /volume1/docker/mssql-test && chown 10001:0 /volume1/docker/mssql-test
-docker run -d --name mssql-test \
-  -e ACCEPT_EULA=Y -e MSSQL_PID=Express -e 'MSSQL_SA_PASSWORD=Test-Carnet#2026' \
-  -v /volume1/docker/mssql-test:/var/opt/mssql \
-  mcr.microsoft.com/mssql/server:2022-latest
-docker logs -f mssql-test     # attendre « SQL Server is now ready for client connections », puis Ctrl+C
+mkdir -p /volume1/docker/mssql-test && chattr +C /volume1/docker/mssql-test && chown 10001:0 /volume1/docker/mssql-test
+docker run -d --name mssql-test -e ACCEPT_EULA=Y -e MSSQL_PID=Express -e 'MSSQL_SA_PASSWORD=Test-Carnet#2026' -v /volume1/docker/mssql-test:/var/opt/mssql mcr.microsoft.com/mssql/server:2019-latest
+docker logs -f mssql-test 2>&1 | grep -E "Microsoft SQL Server 20|ready for client|Recovery is complete|non-yielding"
+docker exec mssql-test sh -c '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "CREATE DATABASE TestCarnet; SELECT name FROM sys.databases"'
+docker ps --filter name=mssql-test --format '{{.Status}}'   # 10 minutes plus tard : « Up ... », sans redémarrage
+docker logs mssql-test 2>&1 | grep -c non-yielding          # doit afficher 0
 docker rm -f mssql-test && rm -rf /volume1/docker/mssql-test
 ```
 
 | Résultat | Suite |
 |---|---|
-| « SQL Server is now ready for client connections » | parfait |
-| le conteneur s'arrête sur une erreur | garder les 30 dernières lignes (`docker logs --tail 30 mssql-test`) et le journal interne (`tail -n 30 /volume1/docker/mssql-test/log/errorlog`) |
+| `Recovery is complete`, base créée, toujours « Up » au bout de 10 minutes, 0 `non-yielding` | parfait |
+| `non-yielding`, ou le conteneur redémarre | SQL Server ne tient pas sur ce NAS : voir les journaux (`docker logs --tail 30 mssql-test`, `tail -n 30 /volume1/docker/mssql-test/log/errorlog`) |
 | rien après « This container is running as user mssql » | normal pendant une à trois minutes sur un processeur de NAS |
 
 ## 2. Préparer DSM
@@ -51,12 +59,13 @@ docker rm -f mssql-test && rm -rf /volume1/docker/mssql-test
 3. En SSH (`ssh ton-compte@ip-du-nas`, puis `sudo -i`) :
 
 ```sh
-mkdir -p /volume1/docker/carnet-de-salle/data/mssql \
-         /volume1/docker/carnet-de-salle/data/backups \
-         /volume1/docker/carnet-de-salle/data/dataprotection
+cd /volume1/docker/carnet-de-salle
+mkdir -p data/mssql data/backups data/dataprotection
+# Btrfs : pas de copy-on-write pour les fichiers de la base (à faire sur le dossier vide)
+chattr +C data/mssql
 # SQL Server tourne avec l'utilisateur 10001, l'API .NET avec l'utilisateur 1654
-chown -R 10001:0 /volume1/docker/carnet-de-salle/data/mssql /volume1/docker/carnet-de-salle/data/backups
-chown -R 1654:1654 /volume1/docker/carnet-de-salle/data/dataprotection
+chown -R 10001:0 data/mssql data/backups
+chown -R 1654:1654 data/dataprotection
 ```
 
 ## 3. Les secrets (`.env`)

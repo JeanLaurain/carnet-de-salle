@@ -117,7 +117,7 @@ dc pull --quiet api web db
 STEP="démarrage de SQL Server"
 dc up -d --wait db
 STEP="préparation de la base (init-db.sql)"
-if ! out="$(dc exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
+if ! out="$(dc exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -l 60 -t 600 -S localhost -U sa \
   -v DbName="${DB_NAME:-CarnetDeSalle}" AppUser="${DB_APP_USER:-carnet_app}" AppPassword="$DB_APP_PASSWORD" \
   -i /opt/carnet/sql/init-db.sql 2>&1)"; then
   printf '%s\n' "$out" | tail -n 20 >&2   # sqlcmd écrit ses erreurs sur la sortie standard

@@ -5,7 +5,7 @@ name: carnet-dev
 
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest   # même version que le NAS
+    image: mcr.microsoft.com/mssql/server:2019-latest   # même version que le NAS
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
