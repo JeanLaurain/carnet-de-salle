@@ -1,12 +1,9 @@
 # Exécute le schéma de référence et le script d'initialisation sur un vrai SQL Server.
 name: Base de données
 
+# Appelé par ci.yml (PR et main).
 on:
-  push:
-    branches: [main]
-    paths: ["db/**", "deploy/sql/**", ".github/workflows/db.yml"]
-  pull_request:
-    paths: ["db/**", "deploy/sql/**", ".github/workflows/db.yml"]
+  workflow_call:
   workflow_dispatch:
 
 permissions:

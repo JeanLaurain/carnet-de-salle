@@ -46,9 +46,10 @@ flowchart LR
 
 | Workflow | Quand | Ce qu'il fait |
 |---|---|---|
-| `api.yml` | PR et push touchant `api/` | restore, format, build, tests xUnit, couverture |
-| `web.yml` | PR et push touchant `web/` | `npm ci`, lint, tests, build de production |
-| `db.yml` | PR et push touchant `db/` ou `deploy/sql/` | exécute le schéma de référence et `init-db.sql` sur un vrai SQL Server |
+| `ci.yml` | chaque PR et chaque push sur `main` | détecte les fichiers modifiés, lance seulement `api.yml`, `web.yml` et `db.yml` concernés, puis publie un statut unique **CI** (celui qu'exige la protection de `main`) |
+| `api.yml` | appelé par `ci.yml` et `images.yml` | restore, format, build, tests xUnit, couverture |
+| `web.yml` | appelé par `ci.yml` et `images.yml` | `npm ci`, lint, tests, build de production |
+| `db.yml` | appelé par `ci.yml` | exécute le schéma de référence et `init-db.sql` sur un vrai SQL Server |
 | `images.yml` | push sur `main` touchant `api/`, `web/` ou `deploy/` ; ou à la main | relance les tests, puis construit et publie les images `sha-xxxxxxx` et `latest` |
 | Dependabot | chaque semaine | PR de mise à jour NuGet, npm, Actions, images Docker |
 

@@ -11,17 +11,30 @@ Les tickets sont des Issues du dépôt, rangées par jalons (0. Fondations → 6
 
 ## Protection de la branche `main`
 
-Avec un compte GitHub gratuit, les règles de protection (rulesets) **ne sont pas appliquées sur un dépôt privé** : GitHub les enregistre mais affiche « Your rulesets won't be enforced on this private repository ». Il faut GitHub Pro (compte perso, payant) pour qu'elles le soient.
+GitHub n'applique les règles de protection (rulesets) que sur un dépôt **public** avec un compte gratuit (sur un dépôt privé, il faut GitHub Pro). La règle se crée donc juste après l'ouverture du dépôt (ticket « Ouvrir le dépôt au public »).
 
-Ce n'est pas bloquant pour ce projet :
+Réglages : **Settings → Rules → Rulesets → New ruleset → New branch ruleset**
 
-- la production est déjà protégée : le workflow Images relance les tests de l'API et du front et ne publie rien si l'un d'eux échoue, et le NAS n'installe que des versions publiées ;
-- chaque push et chaque PR passent quand même par la CI, visible dans l'onglet Actions ;
-- seul le propriétaire peut pousser sur ce dépôt.
+| Champ | Valeur |
+|---|---|
+| Ruleset name | `main` |
+| Enforcement status | **Active** |
+| Target branches | **Include default branch** |
+| Restrict deletions | coché |
+| Block force pushes | coché |
+| Require a pull request before merging | coché, **0** approbation requise (tu travailles seul) |
+| Require status checks to pass | coché, ajouter le contrôle **`CI`** |
+| Bypass list | vide |
 
-Un dépôt **public** applique les rulesets gratuitement : voir « Rendre le dépôt public » plus bas.
+Pourquoi un seul contrôle `CI` : le workflow `ci.yml` ne lance que les contrôles concernés par la PR (API, Web, Base de données) puis publie toujours un statut `CI`. Exiger directement « Build et tests » bloquerait les PR qui ne touchent que la doc, puisque ces contrôles n'y tournent pas.
 
-Si tu passes un jour à GitHub Pro : **Settings → Rules → Rulesets → New branch ruleset** sur `main`, avec **Restrict deletions**, **Block force pushes** et **Require status checks to pass** (`Build et tests` pour l'API et le Web, `Schéma SQL Server`).
+Avec cette règle :
+
+- tout passe par une PR, y compris tes propres changements et ceux de Dependabot ;
+- une PR ne peut être fusionnée que si `CI` est vert ;
+- personne ne peut supprimer `main` ni réécrire son historique.
+
+Si la CI est cassée par un élément extérieur (une action GitHub retirée, par exemple) et bloque même la PR de correction : passer la règle en **Disabled** le temps de fusionner le correctif, puis la remettre en **Active**.
 
 ## Secrets
 
@@ -43,7 +56,7 @@ Le ticket « Ouvrir le dépôt au public » reprend cette liste :
 3. **Settings → Actions → General → Fork pull request workflows from outside collaborators** : *Require approval for all external contributors*.
 4. Passer les deux packages Docker en public, puis vider `GITHUB_TOKEN` dans le `.env` du NAS.
 5. Activer **Settings → Code security** : secret scanning, push protection et Dependabot alerts (gratuits sur un dépôt public).
-6. Créer le ruleset de `main` (appliqué gratuitement sur un dépôt public).
+6. Créer la règle de protection de `main` (section ci-dessus), avec le contrôle `CI`.
 
 ## Dependabot
 

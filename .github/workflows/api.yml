@@ -1,11 +1,7 @@
 name: API
 
+# Appelé par ci.yml (PR et main) et images.yml (avant de publier les images).
 on:
-  push:
-    branches: [main]
-    paths: ["api/**", ".github/workflows/api.yml"]
-  pull_request:
-    paths: ["api/**", ".github/workflows/api.yml"]
   workflow_call:
   workflow_dispatch:
 
