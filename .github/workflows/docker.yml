@@ -1,10 +1,7 @@
-# Construit les images Docker de l'API et du front, les teste comme sur le NAS, puis les publie si demandé.
-#
-# Le NAS tourne sous DSM 7.1 avec le paquet Docker de Synology (Docker 20.10.3). Ce workflow vérifie
-# qu'aucune modification ne casse le déploiement sur cette version :
-#   - les images démarrent avec le seccomp de Docker 20.10.3 (.github/docker/test-images.sh) ;
-#   - deploy/docker-compose.yml est valide pour la version de docker compose que le NAS installe,
-#     figée dans deploy/update.sh avec son empreinte (vérifiée ici aussi) ;
+# Construit les images Docker de l'API et du front, les teste, puis les publie si demandé.
+# Vérifie aussi qu'aucune modification ne casse le déploiement sur le NAS :
+#   - les images démarrent et répondent, l'API derrière nginx (.github/docker/test-images.sh) ;
+#   - deploy/docker-compose.yml est valide pour docker compose ;
 #   - les scripts de deploy/ passent shellcheck.
 #
 # Appelé par ci.yml (PR : construit et teste, sans publier) et par images.yml (main : publie).
@@ -31,16 +28,9 @@ jobs:
       - name: shellcheck
         run: shellcheck deploy/*.sh .github/docker/*.sh
 
-      - name: docker compose du NAS
+      - name: docker-compose.yml
         run: |
-          version="$(sed -n 's/^COMPOSE_VERSION="\(.*\)"$/\1/p' deploy/update.sh)"
-          sha="$(sed -n 's/^COMPOSE_SHA256="\(.*\)"$/\1/p' deploy/update.sh)"
-          echo "Version figée dans update.sh : $version"
-          curl -fsSL "https://github.com/docker/compose/releases/download/$version/docker-compose-linux-x86_64" \
-            -o "$RUNNER_TEMP/docker-compose"
-          echo "$sha  $RUNNER_TEMP/docker-compose" | sha256sum -c -
-          chmod +x "$RUNNER_TEMP/docker-compose"
-          compose() { "$RUNNER_TEMP/docker-compose" --env-file deploy/.env.example -f deploy/docker-compose.yml "$@"; }
+          compose() { docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml "$@"; }
           compose config --quiet
           compose --profile tools config --services
 
@@ -69,7 +59,6 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       # load : l'image reste sur le runner pour être testée avant d'être publiée.
-      # provenance désactivée : un manifeste simple, que Docker 20.10 lit sans surprise.
       - name: Construire l'API
         uses: docker/build-push-action@v6
         with:
@@ -77,7 +66,6 @@ jobs:
           file: api/Dockerfile
           platforms: linux/amd64
           load: true
-          provenance: false
           tags: |
             ${{ steps.meta-api.outputs.tags }}
             local/carnet-de-salle-api:ci
@@ -94,7 +82,6 @@ jobs:
           file: web/Dockerfile
           platforms: linux/amd64
           load: true
-          provenance: false
           tags: |
             ${{ steps.meta-web.outputs.tags }}
             local/carnet-de-salle-web:ci
@@ -102,7 +89,7 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
-      - name: Tester comme sur le NAS (Docker 20.10.3 de DSM 7.1)
+      - name: Tester les images
         run: |
           bash .github/docker/test-images.sh local/carnet-de-salle-api:ci local/carnet-de-salle-web:ci \
             "${{ steps.meta-api.outputs.version }}"

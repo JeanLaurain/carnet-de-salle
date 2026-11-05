@@ -2,20 +2,20 @@
 
 À faire une fois, dans l'ordre. Compte environ une heure. Les tickets du jalon « 0. Fondations » reprennent ces étapes.
 
-Écrit pour **DSM 7.1 avec le paquet Docker** (Docker 20.10.3) ; tout marche aussi avec Container Manager (DSM 7.2 et plus), sans rien changer. Ce que le projet fait pour DSM 7.1 est résumé dans [Particularités de DSM 7.1](#particularités-de-dsm-71).
+Il faut **DSM 7.2 ou plus** (écrit pour DSM 7.4), pour Container Manager et son `docker compose` v2. DSM 7.1 et son paquet Docker (Docker 20.10.3, `docker-compose` v1) ne suffisent pas : en passant de DSM 7.1 à une version plus récente, le paquet Docker est remplacé par Container Manager.
 
 ## 1. Vérifier que le NAS peut faire tourner SQL Server
 
 SQL Server n'existe qu'en version **x86_64** (processeur Intel ou AMD) et demande **au moins 2 Go de RAM** pour lui seul.
 
-- DSM → **Panneau de configuration → Centre d'infos → Général** : noter le modèle, le processeur et la mémoire.
+- DSM → **Panneau de configuration → Centre d'infos → Général** : noter le modèle, le processeur, la mémoire et la version de DSM.
 - Ou en SSH (`ssh ton-compte@ip-du-nas`, puis `sudo -i`) :
 
 ```sh
-uname -m                                       # x86_64 obligatoire
-free -m                                        # mémoire
-docker version --format '{{.Server.Version}}'  # 20.10.3 avec le paquet Docker de DSM 7.1
-df -T /volume1 | tail -n 1                     # système de fichiers : btrfs ou ext4
+uname -m                     # x86_64 obligatoire
+free -m                      # mémoire
+docker compose version       # v2 (Container Manager)
+df -T /volume1 | tail -n 1   # système de fichiers : btrfs ou ext4
 ```
 
 | Résultat | Suite |
@@ -28,7 +28,7 @@ Puis **tester SQL Server pour de vrai**, sur le volume qui gardera la base. Micr
 
 ```sh
 mkdir -p /volume1/docker/mssql-test && chown 10001:0 /volume1/docker/mssql-test
-docker run -d --name mssql-test --security-opt seccomp=unconfined \
+docker run -d --name mssql-test \
   -e ACCEPT_EULA=Y -e MSSQL_PID=Express -e 'MSSQL_SA_PASSWORD=Test-Carnet#2026' \
   -v /volume1/docker/mssql-test:/var/opt/mssql \
   mcr.microsoft.com/mssql/server:2025-latest
@@ -43,7 +43,7 @@ docker rm -f mssql-test && rm -rf /volume1/docker/mssql-test
 
 ## 2. Préparer DSM
 
-1. **Centre de paquets** : le paquet **Docker** (DSM 7.1) ou **Container Manager** (DSM 7.2 et plus) doit être installé. Rien d'autre : `update.sh` télécharge lui-même la bonne version de docker compose au premier déploiement.
+1. **Centre de paquets** → **Container Manager** doit être installé (il remplace le paquet Docker après la mise à jour depuis DSM 7.1).
 2. **Panneau de configuration → Terminal et SNMP** → activer SSH (le temps de l'installation).
 3. En SSH (`ssh ton-compte@ip-du-nas`, puis `sudo -i`) :
 
@@ -92,13 +92,10 @@ curl -fsSL https://raw.githubusercontent.com/JeanLaurain/carnet-de-salle/main/de
 | Revenir à une version | `IMAGE_TAG=sha-1a2b3c4` dans `.env`, puis `bash update.sh` |
 | Suivre de nouveau `main` | `IMAGE_TAG=` vide dans `.env` |
 | Version en ligne | `cat .deployed` |
-| État des conteneurs | `bash dc.sh ps` |
-| Journaux de l'API | `bash dc.sh logs --tail 50 api` |
-| Redémarrer l'API | `bash dc.sh restart api` |
+| État des conteneurs | `docker compose ps` |
+| Journaux de l'API | `docker compose logs --tail 50 api` |
 
-Sur le NAS, passer toujours par **`bash dc.sh`** plutôt que `docker compose` ou `docker-compose` : il utilise le docker compose installé par `update.sh` et les images de la version en ligne. Le `docker-compose` du paquet Docker de DSM 7.1 est une ancienne v1 qui ne sait pas lire `docker-compose.yml`.
-
-Les conteneurs (`carnet-de-salle-db-1`, `-api-1`, `-web-1`) apparaissent aussi dans l'appli Docker de DSM : pratique pour voir leur état et leurs journaux, mais ne pas les modifier là, `update.sh` les recrée à chaque déploiement.
+Les conteneurs (`carnet-de-salle-db-1`, `-api-1`, `-web-1`) apparaissent aussi dans Container Manager : pratique pour voir leur état et leurs journaux, mais ne pas les modifier là, `update.sh` les recrée à chaque déploiement.
 
 Si une nouvelle version ne répond pas sur `/api/health`, le script remet la précédente et note la version dans `.failed` pour ne pas réessayer en boucle. Les migrations déjà appliquées restent en place : écrire des migrations compatibles avec la version précédente (ajouter des colonnes plutôt que d'en supprimer).
 
@@ -131,7 +128,7 @@ bash update.sh --force
 tail -n 20 logs/update.log
 ```
 
-Le script installe docker compose dans `bin/` (60 Mo, une seule fois), récupère `docker-compose.yml` et les scripts de la même version, démarre SQL Server, exécute `init-db.sql` (base + compte `carnet_app`), applique les migrations, démarre l'API et le front, puis vérifie `/api/health`. Le premier lancement télécharge aussi SQL Server (environ 1,5 Go, déjà là si tu as fait le test de l'étape 1) : compter quelques minutes.
+Le script récupère `docker-compose.yml` et les scripts SQL de la même version, démarre SQL Server, exécute `init-db.sql` (base + compte `carnet_app`), applique les migrations, démarre l'API et le front, puis vérifie `/api/health`. Le premier lancement télécharge SQL Server (environ 1,5 Go, déjà là si tu as fait le test de l'étape 1) : compter quelques minutes.
 
 Ensuite, chaque push sur `main` qui touche `api/`, `web/` ou `deploy/` est en ligne au plus 5 minutes après la fin du workflow Images.
 
@@ -148,26 +145,12 @@ Vérifier : `https://fitness.jeanlaura.in` affiche l'appli, et `https://fitness.
 ```sh
 cd /volume1/docker/carnet-de-salle
 touch .pause                 # pas de déploiement pendant la restauration
-bash dc.sh stop api
-bash dc.sh exec db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P '...' \
+docker compose stop api
+docker compose exec db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P '...' \
   -Q "RESTORE DATABASE [CarnetDeSalle] FROM DISK = N'/var/opt/mssql/backup/CarnetDeSalle_AAAA-MM-JJ_0300.bak' WITH REPLACE"
-bash dc.sh start api
+docker compose start api
 rm .pause
 ```
-
-## Particularités de DSM 7.1
-
-Le paquet Docker de DSM 7.1 embarque Docker 20.10.3 (2021) et un vieux docker-compose v1. Le projet s'en accommode tout seul :
-
-| Limite de DSM 7.1 | Ce que fait le projet |
-|---|---|
-| docker-compose v1 : ne comprend ni `name:` ni `--wait` | `update.sh` installe docker compose **v2.29.7** dans `bin/`, empreinte SHA-256 vérifiée ; c'est aussi la version avec laquelle la CI valide `docker-compose.yml`. `dc.sh` s'en sert pour les commandes à la main |
-| Docker 20.10.3 refuse l'appel système `clone3` au lieu de dire qu'il ne le connaît pas : les images Ubuntu ou Debian récentes (glibc 2.34 et plus) ne peuvent plus créer de threads | API et front en images **Alpine**, qui n'utilisent pas `clone3`. SQL Server (image Ubuntu) tourne avec `seccomp=unconfined`, limité à ce conteneur, qui n'est joignable que sur le réseau interne |
-| Options récentes de Docker (`start_interval` des healthchecks...) | non utilisées dans `docker-compose.yml` |
-
-La CI le vérifie à chaque PR ([`docker.yml`](../.github/workflows/docker.yml)) : elle démarre les images avec un profil seccomp qui refuse `clone3` comme Docker 20.10.3, et valide `docker-compose.yml` avec la version de docker compose figée dans `update.sh`. Une image qui ne démarrerait pas sur le NAS n'est donc jamais publiée.
-
-Le jour où le NAS passe en DSM 7.2 (Container Manager), rien à changer.
 
 ## Dépannage
 
@@ -175,11 +158,8 @@ Le jour où le NAS passe en DSM 7.2 (Container Manager), rien à changer.
 |---|---|
 | Rien ne se déploie | `tail logs/update.log` ; présence d'un fichier `.pause` ; tâche planifiée désactivée ; dernier workflow Images en échec ; version listée dans `.failed` |
 | `ERREUR pendant : <étape>` dans le journal | relancer à la main pour voir le détail : `bash update.sh --force` |
-| `docker: command not found` dans le journal | la tâche ne tourne pas en `root`, ou le paquet Docker (DSM 7.1) ou Container Manager (DSM 7.2) n'est pas installé |
-| `téléchargement de docker compose impossible` ou `empreinte SHA-256 incorrecte` | le NAS n'atteint pas github.com, ou le fichier a été abîmé en route : relancer `bash update.sh --force` |
-| `db` ne devient jamais « healthy » | droits du dossier `data/mssql` (étape 2), RAM insuffisante, mot de passe `sa` trop simple, ou SQL Server qui ne tourne pas sur ce NAS (test de l'étape 1) : `bash dc.sh logs --tail 50 db` |
-| `Failed to create thread`, `can't start new thread` ou `Operation not permitted` au démarrage d'un conteneur | image glibc récente sur Docker 20.10.3 (voir [Particularités de DSM 7.1](#particularités-de-dsm-71)) : une image a changé sans passer par la CI, ou la ligne `seccomp=unconfined` a disparu du service `db` |
-| `Additional property name is not allowed`, `unknown flag: --wait` | commande lancée avec le `docker-compose` v1 du paquet Docker : utiliser `bash dc.sh` |
+| `docker: command not found` ou `docker compose v2 introuvable` | la tâche ne tourne pas en `root`, ou Container Manager n'est pas installé (DSM 7.2 ou plus) |
+| `db` ne devient jamais « healthy » | droits du dossier `data/mssql` (étape 2), RAM insuffisante, mot de passe `sa` trop simple, ou SQL Server qui ne tourne pas sur ce volume (test de l'étape 1) : `docker compose logs --tail 50 db` |
 | `pull access denied` sur ghcr.io | images privées sans `GITHUB_TOKEN` (ou jeton sans `read:packages`) : rendre les packages publics ou compléter le jeton |
 | Déconnexion à chaque déploiement | le dossier `data/dataprotection` n'est pas monté ou pas inscriptible par l'utilisateur 1654 |
 | Passkey refusée | le domaine de l'appli ne correspond pas à `APP_DOMAIN`, ou l'API ne voit pas `https` (en-têtes du reverse proxy, `UseForwardedHeaders`) |

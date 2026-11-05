@@ -68,7 +68,7 @@ jobs:
     if: needs.changes.outputs.db == 'true'
     uses: ./.github/workflows/db.yml
 
-  # Construit les images et les teste comme sur le NAS (DSM 7.1), sans les publier
+  # Construit les images et les teste, sans les publier
   images:
     needs: changes
     if: needs.changes.outputs.images == 'true'

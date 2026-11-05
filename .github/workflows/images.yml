@@ -1,7 +1,7 @@
-# Relance les tests, construit les images Docker, les teste comme sur le NAS (DSM 7.1), puis les publie
-# sur GitHub Container Registry. Le NAS récupère tout seul la dernière publication réussie
+# Relance les tests, construit les images Docker, vérifie qu'elles démarrent, puis les publie sur
+# GitHub Container Registry. Le NAS récupère tout seul la dernière publication réussie
 # (deploy/update.sh, toutes les 5 minutes) : aucun runner ni port entrant, et GitHub ne peut pas piloter
-# le NAS. Une image qui ne démarrerait pas sur le NAS n'est donc jamais publiée.
+# le NAS. Une image qui ne démarre pas n'est donc jamais publiée.
 #
 # Tags publiés : sha-xxxxxxx (le commit) et latest.
 name: Images

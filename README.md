@@ -7,8 +7,8 @@ Appli perso de suivi de musculation, de repas et de poids, installable sur l'iPh
 - **API** : ASP.NET Core 10 (C#), EF Core, ASP.NET Core Identity
 - **Base** : SQL Server 2025 Express
 - **Front** : Angular, en PWA (installable depuis Safari)
-- **Hébergement** : NAS Synology sous DSM 7.1 (Docker 20.10), derrière le reverse proxy DSM, sur `fitness.jeanlaura.in`
-- **CI/CD** : GitHub Actions, images testées comme sur le NAS puis publiées sur GitHub Container Registry, mise à jour automatique tirée par le NAS (aucun port entrant)
+- **Hébergement** : NAS Synology (DSM 7.4, Container Manager), derrière le reverse proxy DSM, sur `fitness.jeanlaura.in`
+- **CI/CD** : GitHub Actions, images testées puis publiées sur GitHub Container Registry, mise à jour automatique tirée par le NAS (aucun port entrant)
 
 ## Par où commencer
 

@@ -8,10 +8,6 @@
 #   Tâche planifiée > Script défini par l'utilisateur, utilisateur root, toutes les 5 minutes :
 #     bash /volume1/docker/carnet-de-salle/update.sh
 #
-# Fonctionne avec le paquet « Docker » de DSM 7.1 (Docker 20.10, livré avec un vieux docker-compose v1)
-# comme avec Container Manager (DSM 7.2 et plus) : le script installe sa propre version figée de
-# docker compose v2 dans bin/ (empreinte SHA-256 vérifiée), la même que celle testée par la CI.
-#
 # Fonctionnement :
 #   1. version visée : IMAGE_TAG du .env si elle est fixée (ex. sha-1a2b3c4, pour figer ou revenir
 #      en arrière), sinon le commit de la dernière publication réussie sur main (workflow « Images ») ;
@@ -21,22 +17,17 @@
 #   4. vérifie /api/health ; en cas d'échec, remet la version précédente et ne réessaie plus
 #      cette version (fichier .failed).
 #
+# Demande docker compose v2 : Container Manager, donc DSM 7.2 ou plus.
+#
 # Commandes utiles (dans DEPLOY_DIR) :
 #   bash update.sh --force    redéploie la version visée même si elle est déjà en ligne
 #   touch .pause              suspend les mises à jour (rm .pause pour reprendre)
 #   tail -n 50 logs/update.log
-#   bash dc.sh ps             docker compose sur la version en ligne (ps, logs, restart...)
 set -Eeuo pipefail
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:${PATH:-}"
 
 REPO="JeanLaurain/carnet-de-salle"
 WORKFLOW="images.yml"
-
-# docker compose v2 utilisé sur le NAS (et vérifié par la CI : .github/workflows/docker.yml).
-# Pour changer de version : nouvelle version + empreinte du fichier docker-compose-linux-x86_64.sha256
-# publié avec elle sur https://github.com/docker/compose/releases
-COMPOSE_VERSION="v2.29.7"
-COMPOSE_SHA256="383ce6698cd5d5bbf958d2c8489ed75094e34a77d340404d9f32c4ae9e12baf0"
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DEPLOY_DIR"
@@ -58,6 +49,10 @@ trap 'rmdir "$DEPLOY_DIR/.update.lock" 2>/dev/null || true' EXIT
 
 # Garde le journal sous 2 000 lignes
 if [ -f "$LOG" ] && [ "$(wc -l < "$LOG")" -gt 2000 ]; then tail -n 1000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"; fi
+
+docker compose version >/dev/null 2>&1 \
+  || { log "ERREUR : docker compose v2 introuvable (Container Manager, DSM 7.2 ou plus)"; exit 1; }
+dc() { docker compose "$@"; }
 
 [ -f .env ] || { log "ERREUR : $DEPLOY_DIR/.env manquant (modèle : deploy/.env.example)"; exit 1; }
 unset GITHUB_TOKEN                # seulement celui du .env
@@ -96,28 +91,7 @@ if ! $FORCE; then
 fi
 log "Déploiement de $TAG (commit ${REV:0:7}, en ligne : ${DEPLOYED:-aucune})"
 
-# 3. docker compose v2 figé, dans bin/
-sha256() {
-  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d ' ' -f 1
-  else openssl dgst -sha256 -r "$1" | cut -d ' ' -f 1; fi
-}
-COMPOSE="$DEPLOY_DIR/bin/docker-compose"
-INSTALLED="$("$COMPOSE" version --short 2>/dev/null || true)"
-if [ "${INSTALLED#v}" != "${COMPOSE_VERSION#v}" ]; then
-  [ "$(uname -m)" = "x86_64" ] || { log "ERREUR : processeur $(uname -m) non pris en charge (SQL Server demande un NAS x86_64)"; exit 1; }
-  log "Installation de docker compose $COMPOSE_VERSION dans bin/"
-  mkdir -p bin
-  if ! curl -fsSL "https://github.com/docker/compose/releases/download/$COMPOSE_VERSION/docker-compose-linux-x86_64" -o bin/docker-compose.tmp; then
-    rm -f bin/docker-compose.tmp; log "ERREUR : téléchargement de docker compose impossible"; exit 1
-  fi
-  if [ "$(sha256 bin/docker-compose.tmp)" != "$COMPOSE_SHA256" ]; then
-    rm -f bin/docker-compose.tmp; log "ERREUR : empreinte SHA-256 de docker compose incorrecte, fichier supprimé"; exit 1
-  fi
-  chmod 755 bin/docker-compose.tmp && mv bin/docker-compose.tmp "$COMPOSE"
-fi
-dc() { "$COMPOSE" "$@"; }
-
-# 4. Fichiers de déploiement du même commit, puis images
+# 3. Fichiers de déploiement du même commit, puis images
 fetch() {
   curl -fsSL ${AUTH[@]+"${AUTH[@]}"} "https://raw.githubusercontent.com/$REPO/$REV/$1" -o "$2.tmp" && mv "$2.tmp" "$2"
 }
@@ -125,7 +99,6 @@ STEP="téléchargement des fichiers de déploiement"
 fetch deploy/docker-compose.yml docker-compose.yml
 fetch deploy/sql/init-db.sql sql/init-db.sql
 fetch deploy/backup.sh backup.sh
-fetch deploy/dc.sh dc.sh
 fetch deploy/update.sh update.sh   # le script en cours garde l'ancienne version ouverte : sans risque
 
 export IMAGE_TAG="$TAG"
@@ -143,7 +116,7 @@ dc --profile tools run --rm migrate
 STEP="démarrage de l'API et du front"
 dc up -d --remove-orphans api web
 
-# 5. Vérification, sinon retour à la version précédente
+# 4. Vérification, sinon retour à la version précédente
 for _ in $(seq 1 30); do
   if dc exec -T web wget -qO- http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
     echo "$TAG" > .deployed
