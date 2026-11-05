@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mssql:
-        image: mcr.microsoft.com/mssql/server:2022-latest   # même version que le NAS
+        image: mcr.microsoft.com/mssql/server:2019-latest   # même version que le NAS
         env:
           ACCEPT_EULA: "Y"
           MSSQL_PID: Express

@@ -14,9 +14,10 @@ x-api-image: &api-image ghcr.io/jeanlaurain/carnet-de-salle-api:${IMAGE_TAG:-lat
 
 services:
   db:
-    # SQL Server 2022 : la 2025 plante au démarrage sur le processeur du NAS (docs/deploiement-nas.md,
-    # étape 1). MSSQL_IMAGE dans .env pour en changer ; une base 2022 peut passer en 2025, pas l'inverse.
-    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
+    # SQL Server 2019 : sur ce NAS (noyau Synology 4.4, processeur sans AVX), la 2022 se fige et la 2025
+    # plante au démarrage (docs/deploiement-nas.md, étape 1). MSSQL_IMAGE dans .env pour en changer ;
+    # une base 2019 peut passer à une version plus récente, pas l'inverse.
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2019-latest}
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"

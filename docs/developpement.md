@@ -20,9 +20,9 @@
 git clone https://github.com/JeanLaurain/carnet-de-salle.git
 cd carnet-de-salle
 
-# 1. SQL Server 2022 dans Docker (même version que le NAS)
+# 1. SQL Server 2019 dans Docker (même version que le NAS)
 docker compose -f docker-compose.dev.yml up -d
-# Si la base locale a été créée avec SQL Server 2025, la 2022 ne sait pas l'ouvrir :
+# Si la base locale a été créée avec SQL Server 2022 ou 2025, la 2019 ne sait pas l'ouvrir :
 # docker compose -f docker-compose.dev.yml down -v   (efface la base locale), puis up -d
 
 # 2. API (http://localhost:5113)

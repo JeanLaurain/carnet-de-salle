@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToA
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 // TODO (ticket « Entités EF Core ») : AddDbContext + .AddDbContextCheck<AppDbContext>() sur les health checks.
+// La base est un SQL Server 2019 : UseSqlServer(connexion, sql => sql.UseCompatibilityLevel(150)).
 
 // Clés des cookies conservées dans un volume : sinon chaque déploiement déconnecte tout le monde.
 var keysPath = builder.Configuration["DataProtection:KeysPath"];
