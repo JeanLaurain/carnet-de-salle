@@ -1,8 +1,14 @@
-# Carnet de salle : déploiement sur le NAS Synology (Container Manager / Docker)
+# Carnet de salle : déploiement sur le NAS Synology
+# (paquet « Docker » de DSM 7.1 ou Container Manager de DSM 7.2 et plus)
 #
 # Ce fichier est téléchargé dans DEPLOY_DIR par deploy/update.sh (planifié sur le NAS), pour la même
 # version que les images. Pour relancer à la main : bash update.sh --force
+# Pour toute autre commande : bash dc.sh ... (docker compose v2 installé par update.sh)
 # Les secrets sont dans DEPLOY_DIR/.env (modèle : deploy/.env.example), jamais dans le dépôt.
+#
+# Compatibilité avec Docker 20.10 (DSM 7.1), vérifiée par la CI (.github/workflows/docker.yml) :
+#   - api et web sont des images Alpine ;
+#   - pas d'option de healthcheck plus récente que Docker 20.10 (start_interval, par exemple).
 #
 #   reverse proxy DSM (https://APP_DOMAIN)  ->  web:8080 (nginx, publié sur WEB_PORT)
 #   web /api/*                              ->  api:8080 (ASP.NET Core)
@@ -14,8 +20,16 @@ x-api-image: &api-image ghcr.io/jeanlaurain/carnet-de-salle-api:${IMAGE_TAG:-lat
 
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    # Vide dans .env : SQL Server 2025. À choisir avant le premier déploiement (pas de retour en arrière
+    # possible d'une base 2025 vers 2022).
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest}
     restart: unless-stopped
+    # Docker 20.10.3 (DSM 7.1) refuse l'appel système clone3 au lieu de dire qu'il ne le connaît pas :
+    # les images Ubuntu récentes, comme celle de SQL Server, ne peuvent alors plus créer de threads
+    # (corrigé dans les versions suivantes de Docker 20.10). On lève le filtre seccomp pour ce seul
+    # conteneur, qui n'est joignable que sur le réseau interne. Sans effet gênant sur un Docker récent.
+    security_opt:
+      - seccomp=unconfined
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Express                      # gratuit et autorisé en production
@@ -34,8 +48,8 @@ services:
       start_period: 60s
     networks: [backend]
 
-  # Applique les migrations EF Core puis s'arrête. Lancé à chaque déploiement :
-  #   docker compose --profile tools run --rm migrate
+  # Applique les migrations EF Core puis s'arrête. Lancé à chaque déploiement par update.sh, ou :
+  #   bash dc.sh --profile tools run --rm migrate
   migrate:
     image: *api-image
     profiles: ["tools"]

@@ -25,6 +25,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       db: ${{ steps.filter.outputs.db }}
+      images: ${{ steps.filter.outputs.images }}
     steps:
       - uses: actions/checkout@v5
       - id: filter
@@ -44,6 +45,13 @@ jobs:
               - "deploy/sql/**"
               - ".github/workflows/db.yml"
               - ".github/workflows/ci.yml"
+            images:
+              - "api/**"
+              - "web/**"
+              - "deploy/**"
+              - ".github/docker/**"
+              - ".github/workflows/docker.yml"
+              - ".github/workflows/ci.yml"
 
   api:
     needs: changes
@@ -60,17 +68,23 @@ jobs:
     if: needs.changes.outputs.db == 'true'
     uses: ./.github/workflows/db.yml
 
+  # Construit les images et les teste comme sur le NAS (DSM 7.1), sans les publier
+  images:
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
+    uses: ./.github/workflows/docker.yml
+
   ci:
     name: CI
     if: always()
-    needs: [changes, api, web, db]
+    needs: [changes, api, web, db, images]
     runs-on: ubuntu-latest
     steps:
       - name: Résultat
         env:
           RESULTATS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "Résultats (changes, api, web, db) : $RESULTATS"
+          echo "Résultats (changes, api, web, db, images) : $RESULTATS"
           case " $RESULTATS " in
             *" failure "*|*" cancelled "*) echo "::error::Au moins un contrôle a échoué"; exit 1 ;;
           esac

@@ -1,0 +1,125 @@
+# Construit les images Docker de l'API et du front, les teste comme sur le NAS, puis les publie si demandé.
+#
+# Le NAS tourne sous DSM 7.1 avec le paquet Docker de Synology (Docker 20.10.3). Ce workflow vérifie
+# qu'aucune modification ne casse le déploiement sur cette version :
+#   - les images démarrent avec le seccomp de Docker 20.10.3 (.github/docker/test-images.sh) ;
+#   - deploy/docker-compose.yml est valide pour la version de docker compose que le NAS installe,
+#     figée dans deploy/update.sh avec son empreinte (vérifiée ici aussi) ;
+#   - les scripts de deploy/ passent shellcheck.
+#
+# Appelé par ci.yml (PR : construit et teste, sans publier) et par images.yml (main : publie).
+name: Images Docker
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: Publier les images sur ghcr.io (sha-xxxxxxx et latest)
+        type: boolean
+        default: false
+
+env:
+  IMAGE_PREFIX: ghcr.io/jeanlaurain/carnet-de-salle
+
+jobs:
+  deploy-files:
+    name: Fichiers de déploiement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: shellcheck
+        run: shellcheck deploy/*.sh .github/docker/*.sh
+
+      - name: docker compose du NAS
+        run: |
+          version="$(sed -n 's/^COMPOSE_VERSION="\(.*\)"$/\1/p' deploy/update.sh)"
+          sha="$(sed -n 's/^COMPOSE_SHA256="\(.*\)"$/\1/p' deploy/update.sh)"
+          echo "Version figée dans update.sh : $version"
+          curl -fsSL "https://github.com/docker/compose/releases/download/$version/docker-compose-linux-x86_64" \
+            -o "$RUNNER_TEMP/docker-compose"
+          echo "$sha  $RUNNER_TEMP/docker-compose" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/docker-compose"
+          compose() { "$RUNNER_TEMP/docker-compose" --env-file deploy/.env.example -f deploy/docker-compose.yml "$@"; }
+          compose config --quiet
+          compose --profile tools config --services
+
+  images:
+    name: Construction et test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-api
+          tags: |
+            type=sha,prefix=sha-,format=short,priority=300
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-web
+          tags: |
+            type=sha,prefix=sha-,format=short,priority=300
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # load : l'image reste sur le runner pour être testée avant d'être publiée.
+      # provenance désactivée : un manifeste simple, que Docker 20.10 lit sans surprise.
+      - name: Construire l'API
+        uses: docker/build-push-action@v6
+        with:
+          context: api
+          file: api/Dockerfile
+          platforms: linux/amd64
+          load: true
+          provenance: false
+          tags: |
+            ${{ steps.meta-api.outputs.tags }}
+            local/carnet-de-salle-api:ci
+          labels: ${{ steps.meta-api.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.meta-api.outputs.version }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Construire le front
+        uses: docker/build-push-action@v6
+        with:
+          context: web
+          file: web/Dockerfile
+          platforms: linux/amd64
+          load: true
+          provenance: false
+          tags: |
+            ${{ steps.meta-web.outputs.tags }}
+            local/carnet-de-salle-web:ci
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Tester comme sur le NAS (Docker 20.10.3 de DSM 7.1)
+        run: |
+          bash .github/docker/test-images.sh local/carnet-de-salle-api:ci local/carnet-de-salle-web:ci \
+            "${{ steps.meta-api.outputs.version }}"
+
+      - name: Connexion à ghcr.io
+        if: inputs.push
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publier
+        if: inputs.push
+        env:
+          TAGS: ${{ steps.meta-api.outputs.tags }} ${{ steps.meta-web.outputs.tags }}
+        run: |
+          for tag in $TAGS; do
+            docker push --quiet "$tag"
+          done

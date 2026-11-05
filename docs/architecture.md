@@ -15,7 +15,7 @@ flowchart LR
       BOX[Box internet<br/>port 443 vers le NAS]
       subgraph NAS[NAS Synology]
         RP[Reverse proxy DSM<br/>HTTPS Let's Encrypt]
-        subgraph Docker[Container Manager : projet carnet-de-salle]
+        subgraph Docker[Docker 20.10 de DSM 7.1 : projet compose carnet-de-salle]
           WEB[web : nginx<br/>Angular + /api]
           API[api : ASP.NET Core 10]
           DB[(db : SQL Server 2025 Express)]
@@ -26,7 +26,7 @@ flowchart LR
     GHCR[(ghcr.io<br/>images publiées)]
     I & A -->|HTTPS| DNS --> BOX --> RP -->|http://localhost:8380| WEB
     WEB -->|/api/*| API --> DB
-    UPD -.->|docker compose| Docker
+    UPD -.->|docker compose v2| Docker
     UPD -.->|récupère| GHCR
 ```
 
@@ -39,24 +39,25 @@ flowchart LR
 ```mermaid
 flowchart LR
     DEV[Toi : push ou PR] --> GH[GitHub]
-    GH --> CI[GitHub Actions cloud<br/>API, Web, Base de données]
+    GH --> CI[GitHub Actions cloud<br/>API, Web, Base de données,<br/>images testées façon DSM 7.1]
     CI -->|main uniquement| IMG[Images Docker<br/>ghcr.io sha-xxxxxxx + latest]
     NAS[NAS : update.sh toutes les 5 min<br/>pull, init-db, migrations, up -d<br/>test /api/health, retour arrière] -->|interroge| IMG
 ```
 
 | Workflow | Quand | Ce qu'il fait |
 |---|---|---|
-| `ci.yml` | chaque PR et chaque push sur `main` | détecte les fichiers modifiés, lance seulement `api.yml`, `web.yml` et `db.yml` concernés, puis publie un statut unique **CI** (celui qu'exige la protection de `main`) |
+| `ci.yml` | chaque PR et chaque push sur `main` | détecte les fichiers modifiés, lance seulement `api.yml`, `web.yml`, `db.yml` et `docker.yml` concernés, puis publie un statut unique **CI** (celui qu'exige la protection de `main`) |
 | `api.yml` | appelé par `ci.yml` et `images.yml` | restore, format, build, tests xUnit, couverture |
 | `web.yml` | appelé par `ci.yml` et `images.yml` | `npm ci`, lint, tests, build de production |
 | `db.yml` | appelé par `ci.yml` | exécute le schéma de référence et `init-db.sql` sur un vrai SQL Server |
-| `images.yml` | push sur `main` touchant `api/`, `web/` ou `deploy/` ; ou à la main | relance les tests, puis construit et publie les images `sha-xxxxxxx` et `latest` |
+| `docker.yml` | appelé par `ci.yml` (sans publier) et `images.yml` | construit les images, les démarre avec le seccomp de Docker 20.10.3 (DSM 7.1), valide `docker-compose.yml` avec le docker compose du NAS, shellcheck sur les scripts de `deploy/` |
+| `images.yml` | push sur `main` touchant `api/`, `web/` ou `deploy/` ; ou à la main | relance les tests, puis `docker.yml`, qui publie les images `sha-xxxxxxx` et `latest` |
 | Dependabot | chaque semaine | PR de mise à jour NuGet, npm, Actions, images Docker |
 
 Le **déploiement est tiré par le NAS** : [`deploy/update.sh`](../deploy/update.sh), planifié toutes les 5 minutes, demande à GitHub quelle est la dernière publication réussie sur `main`, télécharge les images et les fichiers de déploiement de ce commit, applique les migrations, redémarre l'appli et vérifie `/api/health`. En cas d'échec, il remet la version précédente et ne réessaie plus cette version.
 
 - Aucun port entrant, aucun runner : GitHub ne peut rien exécuter sur le NAS, ce qui permet de rendre le dépôt public sans risque.
-- Une version qui ne passe pas les tests n'est jamais publiée, donc jamais installée.
+- Une version qui ne passe pas les tests, ou dont les images ne démarrent pas avec le Docker 20.10.3 du NAS (DSM 7.1), n'est jamais publiée, donc jamais installée.
 
 **Retour arrière** : dans le `.env` du NAS, `IMAGE_TAG=sha-1a2b3c4` (un tag visible dans Packages), puis `bash update.sh`. Remettre `IMAGE_TAG=` vide pour suivre de nouveau `main`.
 
@@ -80,6 +81,7 @@ carnet-de-salle/
 │   ├── .env.example          modèle des secrets (le vrai .env reste sur le NAS)
 │   ├── sql/init-db.sql       base + compte SQL de l'API
 │   ├── backup.sh             sauvegarde quotidienne
+│   ├── dc.sh                 docker compose sur le NAS (bash dc.sh ps, logs...)
 │   └── update.sh             mise à jour automatique (planifiée sur le NAS)
 ├── docs/                     cette documentation
 └── docker-compose.dev.yml    SQL Server pour développer en local
@@ -94,7 +96,8 @@ carnet-de-salle/
 | Front | Angular récent (composants standalone, signals), PWA | ton choix ; installable sur l'iPhone |
 | Auth | Identity + cookie, Google, Apple, passkeys | voir [authentification.md](authentification.md) |
 | Images | GitHub Container Registry (privé) | gratuit, lié au dépôt |
-| Déploiement | mise à jour tirée par le NAS (`update.sh`) + docker compose | NAS derrière une box, pas de port entrant, dépôt publiable sans risque |
+| Déploiement | mise à jour tirée par le NAS (`update.sh`) + docker compose v2 figé | NAS derrière une box, pas de port entrant, dépôt publiable sans risque |
+| Images Docker | Alpine pour l'API et le front, testées avec le seccomp de Docker 20.10.3 | le NAS est en DSM 7.1 (paquet Docker) : les images glibc récentes n'y démarrent pas ([détails](deploiement-nas.md#particularités-de-dsm-71)) |
 | Doc de l'API | OpenAPI (`/openapi/v1.json`) + Scalar en dev | à tester avec Bruno ou le fichier `.http` |
 
 ## Contrat d'API (proposition)
