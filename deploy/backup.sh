@@ -8,6 +8,8 @@ set -eu
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:${PATH:-}"
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DEPLOY_DIR"
+# .env édité sous Windows : fins de ligne CRLF (update.sh les retire aussi)
+if grep -q "$(printf '\r')" .env; then sed -i 's/\r$//' .env && chmod 600 .env; fi
 set -a
 # .env est propre au NAS et absent du dépôt
 # shellcheck disable=SC1091

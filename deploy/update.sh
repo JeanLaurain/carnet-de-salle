@@ -55,12 +55,19 @@ docker compose version >/dev/null 2>&1 \
 dc() { docker compose "$@"; }
 
 [ -f .env ] || { log "ERREUR : $DEPLOY_DIR/.env manquant (modèle : deploy/.env.example)"; exit 1; }
+# .env édité sous Windows : les fins de ligne CRLF ajouteraient un \r à chaque valeur (mots de passe compris)
+if grep -q $'\r' .env; then
+  sed -i 's/\r$//' .env && chmod 600 .env
+  log "Fins de ligne Windows (CRLF) retirées du .env"
+fi
+STEP="lecture du .env"
 unset GITHUB_TOKEN                # seulement celui du .env
 set -a
 # .env est propre au NAS et absent du dépôt
 # shellcheck disable=SC1091
 . ./.env
 set +a
+STEP="préparation"
 
 # Jeton facultatif : seulement si le dépôt ou les images sont privés
 AUTH=()

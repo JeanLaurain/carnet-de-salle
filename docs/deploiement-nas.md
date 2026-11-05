@@ -63,6 +63,8 @@ chown -R 1654:1654 /volume1/docker/carnet-de-salle/data/dataprotection
 
 Copier [`deploy/.env.example`](../deploy/.env.example) dans `/volume1/docker/carnet-de-salle/.env` et remplir les valeurs : domaine, mots de passe SQL, emails autorisés, identifiants Google et Apple quand tu les auras. Ce fichier ne quitte jamais le NAS.
 
+Le `.env` va dans le même dossier que `update.sh` : le script se place dans son dossier avant de lire `./.env`. S'il a été écrit sous Windows, ses fins de ligne sont en CRLF (`$'\r': command not found`) : `update.sh` les corrige tout seul, ou à la main avec `sed -i 's/\r$//' .env`.
+
 ```sh
 chmod 600 /volume1/docker/carnet-de-salle/.env
 ```
@@ -161,6 +163,7 @@ rm .pause
 |---|---|
 | Rien ne se déploie | `tail logs/update.log` ; présence d'un fichier `.pause` ; tâche planifiée désactivée ; dernier workflow Images en échec ; version listée dans `.failed` |
 | `ERREUR pendant : <étape>` dans le journal | relancer à la main pour voir le détail : `bash update.sh --force` |
+| `.env: line N: $'\r': command not found` | `.env` écrit sous Windows (fins de ligne CRLF) : `sed -i 's/\r$//' .env`, ou télécharger de nouveau `update.sh` (étape 4), qui le corrige tout seul |
 | `docker: command not found` ou `docker compose v2 introuvable` | la tâche ne tourne pas en `root`, ou Container Manager n'est pas installé (DSM 7.2 ou plus) |
 | `db` ne devient jamais « healthy » | droits du dossier `data/mssql` (étape 2), RAM insuffisante, mot de passe `sa` trop simple, ou SQL Server qui ne tourne pas sur ce volume (test de l'étape 1) : `docker compose logs --tail 50 db` |
 | `pull access denied` sur ghcr.io | images privées sans `GITHUB_TOKEN` (ou jeton sans `read:packages`) : rendre les packages publics ou compléter le jeton |
