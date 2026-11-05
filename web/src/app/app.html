@@ -1,0 +1,16 @@
+<main class="page">
+  <header class="hero">
+    <p class="eyebrow">Carnet de salle</p>
+    <h1>Carnet de salle</h1>
+    <p class="sub">Séances, repas et poids. L'appli arrive ici, onglet par onglet.</p>
+  </header>
+
+  <section class="card" aria-live="polite">
+    <p class="eyebrow">État de l'API</p>
+    @switch (status()) {
+      @case ('loading') { <p>Connexion à l'API…</p> }
+      @case ('ok') { <p class="ok">L'API répond. Version {{ version() }}.</p> }
+      @case ('error') { <p class="error">L'API ne répond pas. Lance-la avec <code>dotnet run</code> dans <code>api/src/CarnetDeSalle.Api</code>.</p> }
+    }
+  </section>
+</main>

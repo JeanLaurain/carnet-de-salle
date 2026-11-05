@@ -1,0 +1,10 @@
+@api = http://localhost:5113
+
+GET {{api}}/api/health
+
+###
+
+GET {{api}}/api/version
+Accept: application/json
+
+###

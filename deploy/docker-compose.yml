@@ -1,0 +1,83 @@
+# Carnet de salle : déploiement sur le NAS Synology (Container Manager / Docker)
+#
+# Ce fichier est téléchargé dans DEPLOY_DIR par deploy/update.sh (planifié sur le NAS), pour la même
+# version que les images. Pour relancer à la main : bash update.sh --force
+# Les secrets sont dans DEPLOY_DIR/.env (modèle : deploy/.env.example), jamais dans le dépôt.
+#
+#   reverse proxy DSM (https://APP_DOMAIN)  ->  web:8080 (nginx, publié sur WEB_PORT)
+#   web /api/*                              ->  api:8080 (ASP.NET Core)
+#   api                                     ->  db:1433  (SQL Server, réseau interne uniquement)
+
+name: carnet-de-salle
+
+x-api-image: &api-image ghcr.io/jeanlaurain/carnet-de-salle-api:${IMAGE_TAG:-latest}
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express                      # gratuit et autorisé en production
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?à définir dans .env}
+      MSSQL_MEMORY_LIMIT_MB: ${MSSQL_MEMORY_LIMIT_MB:-1536}
+      TZ: Europe/Paris
+    volumes:
+      - ${DATA_DIR:?à définir dans .env}/mssql:/var/opt/mssql
+      - ${DATA_DIR}/backups:/var/opt/mssql/backup
+      - ./sql:/opt/carnet/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    networks: [backend]
+
+  # Applique les migrations EF Core puis s'arrête. Lancé à chaque déploiement :
+  #   docker compose --profile tools run --rm migrate
+  migrate:
+    image: *api-image
+    profiles: ["tools"]
+    command: ["--migrate"]
+    environment:
+      ConnectionStrings__Default: "Server=db,1433;Database=${DB_NAME:-CarnetDeSalle};User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    restart: "no"
+
+  api:
+    image: *api-image
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      TZ: Europe/Paris
+      ConnectionStrings__Default: "Server=db,1433;Database=${DB_NAME:-CarnetDeSalle};User Id=${DB_APP_USER:-carnet_app};Password=${DB_APP_PASSWORD:?à définir dans .env};Encrypt=True;TrustServerCertificate=True"
+      App__Domain: ${APP_DOMAIN:?à définir dans .env}
+      App__Version: ${IMAGE_TAG:-latest}
+      DataProtection__KeysPath: /data/dataprotection
+      Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
+      Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Auth__Apple__ServicesId: ${APPLE_SERVICES_ID:-}
+      Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ${DATA_DIR}/dataprotection:/data/dataprotection
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+
+  web:
+    image: ghcr.io/jeanlaurain/carnet-de-salle-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8380}:8080"             # cible du reverse proxy DSM
+    depends_on:
+      - api
+    networks: [backend]
+
+networks:
+  backend:

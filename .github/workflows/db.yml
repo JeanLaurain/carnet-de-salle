@@ -1,0 +1,63 @@
+# Exécute le schéma de référence et le script d'initialisation sur un vrai SQL Server.
+name: Base de données
+
+on:
+  push:
+    branches: [main]
+    paths: ["db/**", "deploy/sql/**", ".github/workflows/db.yml"]
+  pull_request:
+    paths: ["db/**", "deploy/sql/**", ".github/workflows/db.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SQLCMDPASSWORD: CiPassw0rd_2026x   # base jetable de CI, pas un secret
+
+jobs:
+  schema:
+    name: Schéma SQL Server
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2025-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_PID: Express
+          MSSQL_SA_PASSWORD: CiPassw0rd_2026x
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P CiPassw0rd_2026x -Q 'SELECT 1' -b -o /dev/null"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 15
+          --health-start-period 30s
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Copier les scripts dans le conteneur
+        run: |
+          docker cp db/ci/00-identity-stub.sql ${{ job.services.mssql.id }}:/tmp/00.sql
+          docker cp db/schema.sql ${{ job.services.mssql.id }}:/tmp/schema.sql
+          docker cp db/ci/99-smoke-test.sql ${{ job.services.mssql.id }}:/tmp/99.sql
+          docker cp deploy/sql/init-db.sql ${{ job.services.mssql.id }}:/tmp/init-db.sql
+
+      - name: init-db.sql (deux fois, pour vérifier qu'il est idempotent)
+        run: |
+          for i in 1 2; do
+            docker exec -e SQLCMDPASSWORD ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
+              -v DbName="CarnetDeSalle" AppUser="carnet_app" AppPassword="AppPassw0rd_2026x" -i /tmp/init-db.sql
+          done
+
+      - name: Schéma de référence
+        run: |
+          for f in 00.sql schema.sql 99.sql; do
+            echo "::group::$f"
+            docker exec -e SQLCMDPASSWORD ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -b -I -S localhost -U sa -d CarnetDeSalle -i "/tmp/$f"
+            echo "::endgroup::"
+          done
+
+      - name: Le compte de l'API peut lire et écrire
+        run: |
+          docker exec ${{ job.services.mssql.id }} /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U carnet_app -P AppPassw0rd_2026x -d CarnetDeSalle \
+            -Q "SET NOCOUNT ON; SELECT COUNT(*) AS Exercices FROM app.Exercises;"
