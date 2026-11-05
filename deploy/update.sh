@@ -17,22 +17,25 @@
 #   4. vérifie /api/health ; en cas d'échec, remet la version précédente et ne réessaie plus
 #      cette version (fichier .failed).
 #
+# Demande docker compose v2 : Container Manager, donc DSM 7.2 ou plus.
+#
 # Commandes utiles (dans DEPLOY_DIR) :
 #   bash update.sh --force    redéploie la version visée même si elle est déjà en ligne
 #   touch .pause              suspend les mises à jour (rm .pause pour reprendre)
 #   tail -n 50 logs/update.log
-set -euo pipefail
+set -Eeuo pipefail
 export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:${PATH:-}"
 
 REPO="JeanLaurain/carnet-de-salle"
 WORKFLOW="images.yml"
-IMAGES="ghcr.io/jeanlaurain/carnet-de-salle"
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DEPLOY_DIR"
 mkdir -p logs sql
 LOG="$DEPLOY_DIR/logs/update.log"
 log() { echo "$(date '+%F %T') $*" | tee -a "$LOG"; }
+STEP="préparation"
+trap 'log "ERREUR pendant : $STEP (détails : bash update.sh --force)"' ERR
 
 FORCE=false
 [ "${1:-}" = "--force" ] && FORCE=true
@@ -47,11 +50,17 @@ trap 'rmdir "$DEPLOY_DIR/.update.lock" 2>/dev/null || true' EXIT
 # Garde le journal sous 2 000 lignes
 if [ -f "$LOG" ] && [ "$(wc -l < "$LOG")" -gt 2000 ]; then tail -n 1000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"; fi
 
-dc() { if docker compose version >/dev/null 2>&1; then docker compose "$@"; else docker-compose "$@"; fi; }
+docker compose version >/dev/null 2>&1 \
+  || { log "ERREUR : docker compose v2 introuvable (Container Manager, DSM 7.2 ou plus)"; exit 1; }
+dc() { docker compose "$@"; }
 
 [ -f .env ] || { log "ERREUR : $DEPLOY_DIR/.env manquant (modèle : deploy/.env.example)"; exit 1; }
 unset GITHUB_TOKEN                # seulement celui du .env
-set -a; . ./.env; set +a
+set -a
+# .env est propre au NAS et absent du dépôt
+# shellcheck disable=SC1091
+. ./.env
+set +a
 
 # Jeton facultatif : seulement si le dépôt ou les images sont privés
 AUTH=()
@@ -86,19 +95,25 @@ log "Déploiement de $TAG (commit ${REV:0:7}, en ligne : ${DEPLOYED:-aucune})"
 fetch() {
   curl -fsSL ${AUTH[@]+"${AUTH[@]}"} "https://raw.githubusercontent.com/$REPO/$REV/$1" -o "$2.tmp" && mv "$2.tmp" "$2"
 }
+STEP="téléchargement des fichiers de déploiement"
 fetch deploy/docker-compose.yml docker-compose.yml
 fetch deploy/sql/init-db.sql sql/init-db.sql
 fetch deploy/backup.sh backup.sh
 fetch deploy/update.sh update.sh   # le script en cours garde l'ancienne version ouverte : sans risque
 
 export IMAGE_TAG="$TAG"
+STEP="téléchargement des images"
 dc pull --quiet api web db
 
+STEP="démarrage de SQL Server"
 dc up -d --wait db
+STEP="préparation de la base (init-db.sql)"
 dc exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
   -v DbName="${DB_NAME:-CarnetDeSalle}" AppUser="${DB_APP_USER:-carnet_app}" AppPassword="$DB_APP_PASSWORD" \
   -i /opt/carnet/sql/init-db.sql >/dev/null
+STEP="migrations"
 dc --profile tools run --rm migrate
+STEP="démarrage de l'API et du front"
 dc up -d --remove-orphans api web
 
 # 4. Vérification, sinon retour à la version précédente

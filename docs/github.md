@@ -28,7 +28,7 @@ Réglages : **Settings → Rules → Rulesets → New ruleset → New branch rul
 
 Pour ajouter le contrôle : cocher **Require status checks to pass**, cliquer sur **+ Add checks**, taper `CI` et choisir **CI** (GitHub Actions). Ne pas ajouter « Fichiers modifiés » ni les contrôles « api / ... », « web / ... », « db / ... » : ils sont sautés quand une PR ne les concerne pas et la bloqueraient.
 
-Pourquoi un seul contrôle `CI` : le workflow `ci.yml` ne lance que les contrôles concernés par la PR (API, Web, Base de données) puis publie toujours un statut `CI`. Exiger directement « Build et tests » bloquerait les PR qui ne touchent que la doc, puisque ces contrôles n'y tournent pas.
+Pourquoi un seul contrôle `CI` : le workflow `ci.yml` ne lance que les contrôles concernés par la PR (API, Web, Base de données, Images Docker) puis publie toujours un statut `CI`. Exiger directement « Build et tests » bloquerait les PR qui ne touchent que la doc, puisque ces contrôles n'y tournent pas.
 
 Avec cette règle :
 

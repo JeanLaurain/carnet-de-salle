@@ -1,4 +1,4 @@
-# Carnet de salle : déploiement sur le NAS Synology (Container Manager / Docker)
+# Carnet de salle : déploiement sur le NAS Synology (Container Manager, DSM 7.2 ou plus)
 #
 # Ce fichier est téléchargé dans DEPLOY_DIR par deploy/update.sh (planifié sur le NAS), pour la même
 # version que les images. Pour relancer à la main : bash update.sh --force
@@ -14,7 +14,9 @@ x-api-image: &api-image ghcr.io/jeanlaurain/carnet-de-salle-api:${IMAGE_TAG:-lat
 
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    # Vide dans .env : SQL Server 2025. À choisir avant le premier déploiement (une base créée en 2025
+    # ne peut pas revenir en 2022).
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest}
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"

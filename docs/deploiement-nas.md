@@ -2,12 +2,21 @@
 
 À faire une fois, dans l'ordre. Compte environ une heure. Les tickets du jalon « 0. Fondations » reprennent ces étapes.
 
+Il faut **DSM 7.2 ou plus** (écrit pour DSM 7.4), pour Container Manager et son `docker compose` v2. DSM 7.1 et son paquet Docker (Docker 20.10.3, `docker-compose` v1) ne suffisent pas : en passant de DSM 7.1 à une version plus récente, le paquet Docker est remplacé par Container Manager.
+
 ## 1. Vérifier que le NAS peut faire tourner SQL Server
 
 SQL Server n'existe qu'en version **x86_64** (processeur Intel ou AMD) et demande **au moins 2 Go de RAM** pour lui seul.
 
-- DSM → **Panneau de configuration → Centre d'infos → Général** : noter le modèle, le processeur et la mémoire.
-- Ou en SSH : `uname -m` doit afficher `x86_64`, et `free -m` la mémoire.
+- DSM → **Panneau de configuration → Centre d'infos → Général** : noter le modèle, le processeur, la mémoire et la version de DSM.
+- Ou en SSH (`ssh ton-compte@ip-du-nas`, puis `sudo -i`) :
+
+```sh
+uname -m                     # x86_64 obligatoire
+free -m                      # mémoire
+docker compose version       # v2 (Container Manager)
+df -T /volume1 | tail -n 1   # système de fichiers : btrfs ou ext4
+```
 
 | Résultat | Suite |
 |---|---|
@@ -15,9 +24,26 @@ SQL Server n'existe qu'en version **x86_64** (processeur Intel ou AMD) et demand
 | x86_64 et 2 Go | possible en baissant `MSSQL_MEMORY_LIMIT_MB` à 1024, mais ajouter de la RAM est recommandé |
 | ARM (séries « j », « play », « value » récentes) | SQL Server ne tournera pas sur le NAS : il faudra une autre machine pour la base, ou changer de moteur |
 
+Puis **tester SQL Server pour de vrai**, sur le volume qui gardera la base. Microsoft ne prend officiellement en charge qu'ext4 et XFS : sur un volume Btrfs (le choix par défaut de Synology), ce test dit si ça marche chez toi. Il télécharge l'image (environ 1,5 Go), qui resservira au premier déploiement.
+
+```sh
+mkdir -p /volume1/docker/mssql-test && chown 10001:0 /volume1/docker/mssql-test
+docker run -d --name mssql-test \
+  -e ACCEPT_EULA=Y -e MSSQL_PID=Express -e 'MSSQL_SA_PASSWORD=Test-Carnet#2026' \
+  -v /volume1/docker/mssql-test:/var/opt/mssql \
+  mcr.microsoft.com/mssql/server:2025-latest
+docker logs -f mssql-test     # attendre « SQL Server is now ready for client connections », puis Ctrl+C
+docker rm -f mssql-test && rm -rf /volume1/docker/mssql-test
+```
+
+| Résultat | Suite |
+|---|---|
+| « SQL Server is now ready for client connections » | parfait |
+| le conteneur s'arrête sur une erreur | refaire le test avec `mcr.microsoft.com/mssql/server:2022-latest` ; si ça marche, mettre `MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-latest` dans le `.env` (étape 3) **avant** le premier déploiement (une base créée en 2025 ne revient pas en 2022). Sinon, garder les 30 dernières lignes : `docker logs --tail 30 mssql-test` |
+
 ## 2. Préparer DSM
 
-1. **Centre de paquets** → installer **Container Manager** (DSM 7.2 ou plus).
+1. **Centre de paquets** → **Container Manager** doit être installé (il remplace le paquet Docker après la mise à jour depuis DSM 7.1).
 2. **Panneau de configuration → Terminal et SNMP** → activer SSH (le temps de l'installation).
 3. En SSH (`ssh ton-compte@ip-du-nas`, puis `sudo -i`) :
 
@@ -66,6 +92,10 @@ curl -fsSL https://raw.githubusercontent.com/JeanLaurain/carnet-de-salle/main/de
 | Revenir à une version | `IMAGE_TAG=sha-1a2b3c4` dans `.env`, puis `bash update.sh` |
 | Suivre de nouveau `main` | `IMAGE_TAG=` vide dans `.env` |
 | Version en ligne | `cat .deployed` |
+| État des conteneurs | `docker compose ps` |
+| Journaux de l'API | `docker compose logs --tail 50 api` |
+
+Les conteneurs (`carnet-de-salle-db-1`, `-api-1`, `-web-1`) apparaissent aussi dans Container Manager : pratique pour voir leur état et leurs journaux, mais ne pas les modifier là, `update.sh` les recrée à chaque déploiement.
 
 Si une nouvelle version ne répond pas sur `/api/health`, le script remet la précédente et note la version dans `.failed` pour ne pas réessayer en boucle. Les migrations déjà appliquées restent en place : écrire des migrations compatibles avec la version précédente (ajouter des colonnes plutôt que d'en supprimer).
 
@@ -98,7 +128,7 @@ bash update.sh --force
 tail -n 20 logs/update.log
 ```
 
-Le script récupère `docker-compose.yml` et les scripts SQL de la même version, démarre SQL Server, exécute `init-db.sql` (base + compte `carnet_app`), applique les migrations, démarre l'API et le front, puis vérifie `/api/health`. Le premier lancement télécharge SQL Server (environ 1,5 Go) : compter quelques minutes.
+Le script récupère `docker-compose.yml` et les scripts SQL de la même version, démarre SQL Server, exécute `init-db.sql` (base + compte `carnet_app`), applique les migrations, démarre l'API et le front, puis vérifie `/api/health`. Le premier lancement télécharge SQL Server (environ 1,5 Go, déjà là si tu as fait le test de l'étape 1) : compter quelques minutes.
 
 Ensuite, chaque push sur `main` qui touche `api/`, `web/` ou `deploy/` est en ligne au plus 5 minutes après la fin du workflow Images.
 
@@ -114,10 +144,12 @@ Vérifier : `https://fitness.jeanlaura.in` affiche l'appli, et `https://fitness.
 
 ```sh
 cd /volume1/docker/carnet-de-salle
+touch .pause                 # pas de déploiement pendant la restauration
 docker compose stop api
 docker compose exec db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P '...' \
   -Q "RESTORE DATABASE [CarnetDeSalle] FROM DISK = N'/var/opt/mssql/backup/CarnetDeSalle_AAAA-MM-JJ_0300.bak' WITH REPLACE"
 docker compose start api
+rm .pause
 ```
 
 ## Dépannage
@@ -125,8 +157,9 @@ docker compose start api
 | Symptôme | Piste |
 |---|---|
 | Rien ne se déploie | `tail logs/update.log` ; présence d'un fichier `.pause` ; tâche planifiée désactivée ; dernier workflow Images en échec ; version listée dans `.failed` |
-| `docker: command not found` dans le journal | la tâche ne tourne pas en `root`, ou Container Manager n'est pas installé |
-| `db` ne devient jamais « healthy » | droits du dossier `data/mssql` (étape 2), RAM insuffisante, ou mot de passe `sa` trop simple : `docker compose logs db` |
+| `ERREUR pendant : <étape>` dans le journal | relancer à la main pour voir le détail : `bash update.sh --force` |
+| `docker: command not found` ou `docker compose v2 introuvable` | la tâche ne tourne pas en `root`, ou Container Manager n'est pas installé (DSM 7.2 ou plus) |
+| `db` ne devient jamais « healthy » | droits du dossier `data/mssql` (étape 2), RAM insuffisante, mot de passe `sa` trop simple, ou SQL Server qui ne tourne pas sur ce volume (test de l'étape 1) : `docker compose logs --tail 50 db` |
 | `pull access denied` sur ghcr.io | images privées sans `GITHUB_TOKEN` (ou jeton sans `read:packages`) : rendre les packages publics ou compléter le jeton |
 | Déconnexion à chaque déploiement | le dossier `data/dataprotection` n'est pas monté ou pas inscriptible par l'utilisateur 1654 |
 | Passkey refusée | le domaine de l'appli ne correspond pas à `APP_DOMAIN`, ou l'API ne voit pas `https` (en-têtes du reverse proxy, `UseForwardedHeaders`) |
