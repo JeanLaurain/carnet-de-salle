@@ -1,5 +1,7 @@
 # Carnet de salle
 
+[![CI](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/ci.yml/badge.svg)](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/ci.yml) [![Images](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/images.yml/badge.svg)](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/images.yml)
+
 Appli perso de suivi de musculation, de repas et de poids, installable sur l'iPhone. Elle reprend l'artefact Claude « Carnet de salle » ([copie de référence](docs/reference/carnet-de-salle-artefact.html)) sous forme de vraie appli :
 
 - **API** : ASP.NET Core 10 (C#), EF Core, ASP.NET Core Identity
