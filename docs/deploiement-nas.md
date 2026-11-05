@@ -162,7 +162,8 @@ rm .pause
 | Symptôme | Piste |
 |---|---|
 | Rien ne se déploie | `tail logs/update.log` ; présence d'un fichier `.pause` ; tâche planifiée désactivée ; dernier workflow Images en échec ; version listée dans `.failed` |
-| `ERREUR pendant : <étape>` dans le journal | relancer à la main pour voir le détail : `bash update.sh --force` |
+| `ERREUR pendant : <étape>` dans le journal | le message de la commande en échec est juste au-dessus dans `logs/update.log` ; pour relancer : `bash update.sh --force` |
+| `Password validation failed` pendant `init-db.sql` | `DB_APP_PASSWORD` refusé par SQL Server : 8 caractères au moins, 3 types parmi majuscule, minuscule, chiffre et symbole, sans le nom du compte (`carnet_app`) ; le changer dans `.env` puis `bash update.sh --force` |
 | `.env: line N: $'\r': command not found` | `.env` écrit sous Windows (fins de ligne CRLF) : `sed -i 's/\r$//' .env`, ou télécharger de nouveau `update.sh` (étape 4), qui le corrige tout seul |
 | `docker: command not found` ou `docker compose v2 introuvable` | la tâche ne tourne pas en `root`, ou Container Manager n'est pas installé (DSM 7.2 ou plus) |
 | `db` ne devient jamais « healthy » | droits du dossier `data/mssql` (étape 2), RAM insuffisante, mot de passe `sa` trop simple, ou SQL Server qui ne tourne pas sur ce volume (test de l'étape 1) : `docker compose logs --tail 50 db` |

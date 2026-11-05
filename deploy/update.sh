@@ -34,8 +34,10 @@ cd "$DEPLOY_DIR"
 mkdir -p logs sql
 LOG="$DEPLOY_DIR/logs/update.log"
 log() { echo "$(date '+%F %T') $*" | tee -a "$LOG"; }
+# Messages d'erreur des commandes (docker compose, sqlcmd...) aussi dans le journal
+exec 2> >(tee -a "$LOG" >&2)
 STEP="préparation"
-trap 'log "ERREUR pendant : $STEP (détails : bash update.sh --force)"' ERR
+trap 'log "ERREUR pendant : $STEP (message au-dessus ; pour relancer : bash update.sh --force)"' ERR
 
 FORCE=false
 [ "${1:-}" = "--force" ] && FORCE=true
@@ -115,9 +117,12 @@ dc pull --quiet api web db
 STEP="démarrage de SQL Server"
 dc up -d --wait db
 STEP="préparation de la base (init-db.sql)"
-dc exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
+if ! out="$(dc exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
   -v DbName="${DB_NAME:-CarnetDeSalle}" AppUser="${DB_APP_USER:-carnet_app}" AppPassword="$DB_APP_PASSWORD" \
-  -i /opt/carnet/sql/init-db.sql >/dev/null
+  -i /opt/carnet/sql/init-db.sql 2>&1)"; then
+  printf '%s\n' "$out" | tail -n 20 >&2   # sqlcmd écrit ses erreurs sur la sortie standard
+  false
+fi
 STEP="migrations"
 dc --profile tools run --rm migrate
 STEP="démarrage de l'API et du front"
