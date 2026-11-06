@@ -154,17 +154,20 @@ Vérifier : `https://fitness.jeanlaura.in` affiche l'appli, et `https://fitness.
    - utilisateur `root`, tous les jours à 3 h ;
    - commande : `sh /volume1/docker/carnet-de-salle/backup.sh`
 2. **Hyper Backup** : ajouter `/volume1/docker/carnet-de-salle/data/backups` à une sauvegarde hors du NAS (disque USB ou cloud).
-3. **Restaurer** (à tester une fois) :
+3. **Restaurer** (à tester une fois). Une commande par ligne ; le mot de passe `sa` est lu dans le `.env`, rien à taper :
 
 ```sh
 cd /volume1/docker/carnet-de-salle
-touch .pause                 # pas de déploiement pendant la restauration
+ls data/backups/                 # choisir le fichier, ex. CarnetDeSalle_2026-11-06_0300.bak (sinon : sh backup.sh)
+set -a; . ./.env; set +a
+touch .pause                     # pas de déploiement pendant la restauration
 docker compose stop api
-docker compose exec db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P '...' \
-  -Q "RESTORE DATABASE [CarnetDeSalle] FROM DISK = N'/var/opt/mssql/backup/CarnetDeSalle_AAAA-MM-JJ_0300.bak' WITH REPLACE"
+docker compose exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa -Q "RESTORE DATABASE [CarnetDeSalle] FROM DISK = N'/var/opt/mssql/backup/CarnetDeSalle_2026-11-06_0300.bak' WITH REPLACE"
 docker compose start api
 rm .pause
 ```
+
+   Remplacer le nom du fichier par celui choisi avec `ls`, et `CarnetDeSalle` par `DB_NAME` s'il a été changé dans le `.env`.
 
 ## Dépannage
 
@@ -172,6 +175,7 @@ rm .pause
 |---|---|
 | Rien ne se déploie | `tail logs/update.log` ; présence d'un fichier `.pause` ; tâche planifiée désactivée ; dernier workflow Images en échec ; version listée dans `.failed` |
 | `ERREUR pendant : <étape>` dans le journal | le message de la commande en échec est juste au-dessus dans `logs/update.log` ; pour relancer : `bash update.sh --force` |
+| `Login failed for user 'sa'` | mot de passe `sa` différent de `MSSQL_SA_PASSWORD` du `.env` : passer par `SQLCMDPASSWORD` comme ci-dessus (le `.env` est lu par `set -a; . ./.env; set +a`) plutôt que de le taper |
 | `Password validation failed` pendant `init-db.sql` | `DB_APP_PASSWORD` refusé par SQL Server : 8 caractères au moins, 3 types parmi majuscule, minuscule, chiffre et symbole, sans le nom du compte (`carnet_app`) ; le changer dans `.env` puis `bash update.sh --force` |
 | `.env: line N: $'\r': command not found` | `.env` écrit sous Windows (fins de ligne CRLF) : `sed -i 's/\r$//' .env`, ou télécharger de nouveau `update.sh` (étape 4), qui le corrige tout seul |
 | `docker: command not found` ou `docker compose v2 introuvable` | la tâche ne tourne pas en `root`, ou Container Manager n'est pas installé (DSM 7.2 ou plus) |
