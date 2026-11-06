@@ -1,12 +1,14 @@
 # Carnet de salle
 
+[![CI](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/ci.yml/badge.svg)](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/ci.yml) [![Images](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/images.yml/badge.svg)](https://github.com/JeanLaurain/carnet-de-salle/actions/workflows/images.yml)
+
 Appli perso de suivi de musculation, de repas et de poids, installable sur l'iPhone. Elle reprend l'artefact Claude « Carnet de salle » ([copie de référence](docs/reference/carnet-de-salle-artefact.html)) sous forme de vraie appli :
 
 - **API** : ASP.NET Core 10 (C#), EF Core, ASP.NET Core Identity
-- **Base** : SQL Server 2025 Express
+- **Base** : SQL Server 2019 Express
 - **Front** : Angular, en PWA (installable depuis Safari)
-- **Hébergement** : NAS Synology, Docker, derrière le reverse proxy DSM, sur `fitness.jeanlaura.in`
-- **CI/CD** : GitHub Actions, images sur GitHub Container Registry, mise à jour automatique tirée par le NAS (aucun port entrant)
+- **Hébergement** : NAS Synology (DSM 7.4, Container Manager), derrière le reverse proxy DSM, sur `fitness.jeanlaura.in`
+- **CI/CD** : GitHub Actions, images testées puis publiées sur GitHub Container Registry, mise à jour automatique tirée par le NAS (aucun port entrant)
 
 ## Par où commencer
 
@@ -44,4 +46,4 @@ Appli perso de suivi de musculation, de repas et de poids, installable sur l'iPh
 
 - Squelette API : `GET /api/health`, `GET /api/version`, tests d'intégration.
 - Squelette front : page d'accueil qui interroge l'API, PWA (manifeste, service worker), thème de l'artefact.
-- CI : API, Web et Base de données verts ; le workflow Images publie les images, que le NAS installe tout seul via `deploy/update.sh`.
+- CI : API, Web, Base de données et Images Docker verts ; le workflow Images publie les images, que le NAS installe tout seul via `deploy/update.sh`.

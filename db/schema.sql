@@ -1,5 +1,5 @@
 /* =============================================================================
-   Carnet de salle : schéma de référence de la base (SQL Server 2022 / 2025)
+   Carnet de salle : schéma de référence de la base (SQL Server 2019 et plus)
    -----------------------------------------------------------------------------
    - Ce script décrit le schéma MÉTIER (schéma SQL `app`).
    - Les tables d'identité (dbo.AspNetUsers, dbo.AspNetUserLogins,

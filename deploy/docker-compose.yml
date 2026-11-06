@@ -1,4 +1,4 @@
-# Carnet de salle : déploiement sur le NAS Synology (Container Manager / Docker)
+# Carnet de salle : déploiement sur le NAS Synology (Container Manager, DSM 7.2 ou plus)
 #
 # Ce fichier est téléchargé dans DEPLOY_DIR par deploy/update.sh (planifié sur le NAS), pour la même
 # version que les images. Pour relancer à la main : bash update.sh --force
@@ -14,7 +14,10 @@ x-api-image: &api-image ghcr.io/jeanlaurain/carnet-de-salle-api:${IMAGE_TAG:-lat
 
 services:
   db:
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    # SQL Server 2019 : sur ce NAS (noyau Synology 4.4, processeur sans AVX), la 2022 se fige et la 2025
+    # plante au démarrage (docs/deploiement-nas.md, étape 1). MSSQL_IMAGE dans .env pour en changer ;
+    # une base 2019 peut passer à une version plus récente, pas l'inverse.
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2019-latest}
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"

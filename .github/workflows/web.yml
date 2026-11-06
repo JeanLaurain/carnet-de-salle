@@ -1,11 +1,7 @@
 name: Web
 
+# Appelé par ci.yml (PR et main) et images.yml (avant de publier les images).
 on:
-  push:
-    branches: [main]
-    paths: ["web/**", ".github/workflows/web.yml"]
-  pull_request:
-    paths: ["web/**", ".github/workflows/web.yml"]
   workflow_call:
   workflow_dispatch:
 

@@ -18,7 +18,7 @@ flowchart LR
         subgraph Docker[Container Manager : projet carnet-de-salle]
           WEB[web : nginx<br/>Angular + /api]
           API[api : ASP.NET Core 10]
-          DB[(db : SQL Server 2025 Express)]
+          DB[(db : SQL Server 2019 Express)]
         end
         UPD[update.sh<br/>toutes les 5 min]
       end
@@ -46,16 +46,18 @@ flowchart LR
 
 | Workflow | Quand | Ce qu'il fait |
 |---|---|---|
-| `api.yml` | PR et push touchant `api/` | restore, format, build, tests xUnit, couverture |
-| `web.yml` | PR et push touchant `web/` | `npm ci`, lint, tests, build de production |
-| `db.yml` | PR et push touchant `db/` ou `deploy/sql/` | exécute le schéma de référence et `init-db.sql` sur un vrai SQL Server |
-| `images.yml` | push sur `main` touchant `api/`, `web/` ou `deploy/` ; ou à la main | relance les tests, puis construit et publie les images `sha-xxxxxxx` et `latest` |
+| `ci.yml` | chaque PR et chaque push sur `main` | détecte les fichiers modifiés, lance seulement `api.yml`, `web.yml`, `db.yml` et `docker.yml` concernés, puis publie un statut unique **CI** (celui qu'exige la protection de `main`) |
+| `api.yml` | appelé par `ci.yml` et `images.yml` | restore, format, build, tests xUnit, couverture |
+| `web.yml` | appelé par `ci.yml` et `images.yml` | `npm ci`, lint, tests, build de production |
+| `db.yml` | appelé par `ci.yml` | exécute le schéma de référence et `init-db.sql` sur un vrai SQL Server |
+| `docker.yml` | appelé par `ci.yml` (sans publier) et `images.yml` | construit les images, les démarre (API derrière nginx) et vérifie qu'elles répondent, valide `docker-compose.yml`, shellcheck sur les scripts de `deploy/` |
+| `images.yml` | push sur `main` touchant `api/`, `web/` ou `deploy/` ; ou à la main | relance les tests, puis `docker.yml`, qui publie les images `sha-xxxxxxx` et `latest` |
 | Dependabot | chaque semaine | PR de mise à jour NuGet, npm, Actions, images Docker |
 
 Le **déploiement est tiré par le NAS** : [`deploy/update.sh`](../deploy/update.sh), planifié toutes les 5 minutes, demande à GitHub quelle est la dernière publication réussie sur `main`, télécharge les images et les fichiers de déploiement de ce commit, applique les migrations, redémarre l'appli et vérifie `/api/health`. En cas d'échec, il remet la version précédente et ne réessaie plus cette version.
 
 - Aucun port entrant, aucun runner : GitHub ne peut rien exécuter sur le NAS, ce qui permet de rendre le dépôt public sans risque.
-- Une version qui ne passe pas les tests n'est jamais publiée, donc jamais installée.
+- Une version qui ne passe pas les tests, ou dont les images ne démarrent pas, n'est jamais publiée, donc jamais installée.
 
 **Retour arrière** : dans le `.env` du NAS, `IMAGE_TAG=sha-1a2b3c4` (un tag visible dans Packages), puis `bash update.sh`. Remettre `IMAGE_TAG=` vide pour suivre de nouveau `main`.
 
@@ -89,7 +91,7 @@ carnet-de-salle/
 | Sujet | Choix | Pourquoi |
 |---|---|---|
 | API | ASP.NET Core 10 (LTS), minimal API, EF Core 10 | ton choix ; LTS jusqu'en novembre 2028 |
-| Base | SQL Server 2025 Express en conteneur | gratuit en production, limite de 50 Go largement suffisante |
+| Base | SQL Server 2019 Express en conteneur | gratuit en production, limite de 10 Go par base largement suffisante, correctifs de sécurité jusqu'en janvier 2030 ; la 2022 et la 2025 ne tiennent pas sur le NAS (noyau Synology 4.4, processeur sans AVX) |
 | Front | Angular récent (composants standalone, signals), PWA | ton choix ; installable sur l'iPhone |
 | Auth | Identity + cookie, Google, Apple, passkeys | voir [authentification.md](authentification.md) |
 | Images | GitHub Container Registry (privé) | gratuit, lié au dépôt |

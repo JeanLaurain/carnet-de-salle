@@ -1,6 +1,9 @@
 # Base de données
 
-SQL Server 2025 (édition **Express**, gratuite et utilisable en production), dans un conteneur sur le NAS.
+SQL Server 2019 (édition **Express**, gratuite et utilisable en production, 10 Go au plus par base), dans un conteneur sur le NAS. Les versions plus récentes ne tiennent pas sur ce NAS : la 2022 se fige (noyau Synology 4.4), la 2025 plante au démarrage (processeur sans AVX). La 2019 reçoit des correctifs de sécurité jusqu'au 8 janvier 2030 ; une base 2019 se restaure sans problème sur une version plus récente.
+
+- **EF Core** : déclarer la version visée, sinon EF Core peut générer du SQL apparu après 2019 (`GREATEST`, `DATETRUNC`, type `json`...) :
+  `options.UseSqlServer(connectionString, sql => sql.UseCompatibilityLevel(150))` (150 = SQL Server 2019).
 
 - Le schéma métier vit dans le schéma SQL `app`. Les tables d'identité (`dbo.AspNet*`) sont gérées par ASP.NET Core Identity.
 - La base est créée et mise à jour par les **migrations EF Core** (code first). Le fichier [`db/schema.sql`](../db/schema.sql) est la **référence** à suivre pour écrire les entités : la CI l'exécute sur un vrai SQL Server à chaque modification (workflow `db.yml`).

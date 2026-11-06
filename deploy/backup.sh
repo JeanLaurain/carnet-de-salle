@@ -5,12 +5,20 @@
 # Les fichiers .bak arrivent dans DATA_DIR/backups : ajoute ce dossier à Hyper Backup
 # pour en garder une copie hors du NAS.
 set -eu
+export PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:${PATH:-}"
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
-set -a; . "$DEPLOY_DIR/.env"; set +a
+cd "$DEPLOY_DIR"
+# .env édité sous Windows : fins de ligne CRLF (update.sh les retire aussi)
+if grep -q "$(printf '\r')" .env; then sed -i 's/\r$//' .env && chmod 600 .env; fi
+set -a
+# .env est propre au NAS et absent du dépôt
+# shellcheck disable=SC1091
+. ./.env
+set +a
 DB="${DB_NAME:-CarnetDeSalle}"
 FILE="/var/opt/mssql/backup/${DB}_$(date +%Y-%m-%d_%H%M).bak"
 
-docker exec carnet-de-salle-db-1 /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa -P "$MSSQL_SA_PASSWORD" \
+docker compose exec -T -e SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" db /opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa \
   -Q "BACKUP DATABASE [$DB] TO DISK = N'$FILE' WITH INIT, CHECKSUM, NAME = N'$DB quotidienne'"
 
 # Garde 14 jours de sauvegardes

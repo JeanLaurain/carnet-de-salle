@@ -1,0 +1,91 @@
+# Point d'entrée de la CI pour les PR et pour main.
+# Ne lance que les contrôles concernés par les fichiers modifiés, puis publie un seul statut « CI »,
+# toujours présent : c'est lui que la règle de protection de main exige. Une PR qui ne touche que la doc
+# passe donc sans attendre des contrôles qui ne tourneront jamais.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Fichiers modifiés
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+      db: ${{ steps.filter.outputs.db }}
+      images: ${{ steps.filter.outputs.images }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - "api/**"
+              - ".github/workflows/api.yml"
+              - ".github/workflows/ci.yml"
+            web:
+              - "web/**"
+              - ".github/workflows/web.yml"
+              - ".github/workflows/ci.yml"
+            db:
+              - "db/**"
+              - "deploy/sql/**"
+              - ".github/workflows/db.yml"
+              - ".github/workflows/ci.yml"
+            images:
+              - "api/**"
+              - "web/**"
+              - "deploy/**"
+              - ".github/docker/**"
+              - ".github/workflows/docker.yml"
+              - ".github/workflows/ci.yml"
+
+  api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    uses: ./.github/workflows/api.yml
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    uses: ./.github/workflows/web.yml
+
+  db:
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
+    uses: ./.github/workflows/db.yml
+
+  # Construit les images et les teste, sans les publier
+  images:
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
+    uses: ./.github/workflows/docker.yml
+
+  ci:
+    name: CI
+    if: always()
+    needs: [changes, api, web, db, images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Résultat
+        env:
+          RESULTATS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Résultats (changes, api, web, db, images) : $RESULTATS"
+          case " $RESULTATS " in
+            *" failure "*|*" cancelled "*) echo "::error::Au moins un contrôle a échoué"; exit 1 ;;
+          esac
+          echo "Tout est vert (les contrôles « skipped » ne concernaient pas cette modification)."
