@@ -1,5 +1,9 @@
+using CarnetDeSalle.Api.Data;
+using CarnetDeSalle.Api.Entities;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 // « --migrate » : applique les migrations EF Core puis s'arrête (service « migrate » du docker compose).
 var migrateOnly = args.Contains("--migrate");
@@ -7,6 +11,19 @@ var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToA
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default"),
+        sql => sql.UseCompatibilityLevel(150));
+});
+
+builder.Services
+    .AddIdentityCore<AppUser>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
+    .AddRoles<IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<AppDbContext>();
+
 // TODO (ticket « Entités EF Core ») : AddDbContext + .AddDbContextCheck<AppDbContext>() sur les health checks.
 
 // Clés des cookies conservées dans un volume : sinon chaque déploiement déconnecte tout le monde.
