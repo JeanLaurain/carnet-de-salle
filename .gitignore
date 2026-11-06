@@ -40,3 +40,6 @@ appsettings.*.local.json
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+# Script de contrôle du modèle EF (dotnet ef dbcontext script), à ne pas commiter
+api/model.sql
