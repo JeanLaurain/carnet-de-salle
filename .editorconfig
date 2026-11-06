@@ -24,3 +24,7 @@ trim_trailing_whitespace = false
 
 [*.sql]
 indent_size = 4
+
+# Migrations EF Core : générées par « dotnet ef » en UTF-8 avec BOM, à ne pas retoucher
+[**/Migrations/*.cs]
+charset = utf-8-bom
