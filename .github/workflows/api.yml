@@ -37,12 +37,13 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -c Release
 
+      # xunit.v3 tourne sur Microsoft.Testing.Platform (activé dans api/global.json) :
+      # rapport TRX par xunit lui-même, plus d'options VSTest (--logger, --collect).
       - name: Tests
         run: >
           dotnet test --no-build -c Release
-          --logger "trx;LogFileName=test-results.trx"
-          --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
+          --report-xunit-trx --report-xunit-trx-filename test-results.trx
 
       - name: Résultats des tests
         if: always()
