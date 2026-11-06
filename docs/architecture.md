@@ -66,7 +66,9 @@ Le **déploiement est tiré par le NAS** : [`deploy/update.sh`](../deploy/update
 ```text
 carnet-de-salle/
 ├── api/                      API ASP.NET Core 10 (solution CarnetDeSalle)
-│   ├── src/CarnetDeSalle.Api/
+│   ├── src/
+│       ├── CarnetDeSalle.Api/
+│           ├── Data/Seed/programme.json
 │   ├── tests/CarnetDeSalle.Api.Tests/
 │   └── Dockerfile
 ├── web/                      Angular (PWA), servi par nginx
