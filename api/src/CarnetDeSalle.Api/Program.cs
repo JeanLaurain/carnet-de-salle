@@ -1,16 +1,19 @@
 using CarnetDeSalle.Api.Data;
+using CarnetDeSalle.Api.Data.Seed;
 using CarnetDeSalle.Api.Entities;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 // « --migrate » : applique les migrations EF Core puis s'arrête (service « migrate » du docker compose).
 var migrateOnly = args.Contains("--migrate");
 var builder = WebApplication.CreateBuilder(args.Where(a => a != "--migrate").ToArray());
 
 builder.Services.AddOpenApi();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -23,9 +26,6 @@ builder.Services
     .AddIdentityCore<AppUser>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<AppDbContext>();
-
-// TODO (ticket « Entités EF Core ») : AddDbContext + .AddDbContextCheck<AppDbContext>() sur les health checks.
-// La base est un SQL Server 2019 : UseSqlServer(connexion, sql => sql.UseCompatibilityLevel(150)).
 
 // Clés des cookies conservées dans un volume : sinon chaque déploiement déconnecte tout le monde.
 var keysPath = builder.Configuration["DataProtection:KeysPath"];
@@ -50,10 +50,11 @@ var app = builder.Build();
 
 if (migrateOnly)
 {
-    // TODO (ticket « Migration initiale ») :
-    // using var scope = app.Services.CreateScope();
-    // await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
-    app.Logger.LogInformation("Aucune migration à appliquer pour l'instant.");
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.MigrateAsync();
+    var changes = await ExerciseCatalogSeeder.SeedAsync(dbContext);
+    app.Logger.LogInformation("Migrations applicates");
     return;
 }
 
