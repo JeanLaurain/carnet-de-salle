@@ -11,7 +11,7 @@ public class BaseDeDonneesTests(ApiFactory api) : IClassFixture<ApiFactory>
     [Fact]
     public async Task Health_verifie_aussi_la_base()
     {
-        var response = await api.CreateClient().GetAsync("/api/health");
+        var response = await api.CreateClient().GetAsync("/api/health", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -21,7 +21,7 @@ public class BaseDeDonneesTests(ApiFactory api) : IClassFixture<ApiFactory>
         using var scope = api.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        Assert.Equal(0, await ExerciseCatalogSeeder.SeedAsync(db));
-        Assert.Equal(10, await db.Exercises.CountAsync());
+        Assert.Equal(0, await ExerciseCatalogSeeder.SeedAsync(db, TestContext.Current.CancellationToken));
+        Assert.Equal(10, await db.Exercises.CountAsync(TestContext.Current.CancellationToken));
     }
 }

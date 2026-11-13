@@ -1,6 +1,9 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using CarnetDeSalle.Api.Data;
 using CarnetDeSalle.Api.Data.Seed;
 using CarnetDeSalle.Api.Entities;
+using CarnetDeSalle.Api.Features.Programs;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -26,6 +29,19 @@ builder.Services
     .AddIdentityCore<AppUser>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<AppDbContext>();
+
+// Le vrai schéma de connexion (cookie) arrive avec #27 : d'ici là, seuls les tests
+// (TestAuthHandler) peuvent appeler les routes protégées.
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
+
+// Horloge injectée : les tests la remplacent pour fixer « aujourd'hui »
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<DefaultProgramService>();
+
+// MeasureType sort en "load" / "time" / "reps" au lieu de 0 / 1 / 2
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
 // Clés des cookies conservées dans un volume : sinon chaque déploiement déconnecte tout le monde.
 var keysPath = builder.Configuration["DataProtection:KeysPath"];
@@ -54,7 +70,7 @@ if (migrateOnly)
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.MigrateAsync();
     var changes = await ExerciseCatalogSeeder.SeedAsync(dbContext);
-    app.Logger.LogInformation("Migrations applicates");
+    app.Logger.LogInformation("Migrations appliquées, catalogue d'exercices : {Changes} modification(s)", changes);
     return;
 }
 
@@ -71,6 +87,8 @@ api.MapHealthChecks("/health");
 
 api.MapGet("/version", (IConfiguration configuration) => new VersionInfo(configuration["App:Version"] ?? "dev"))
     .WithName("GetVersion");
+
+api.MapProgramEndpoints();
 
 app.Run();
 
