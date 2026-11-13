@@ -11,10 +11,10 @@ public class HealthEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/health");
+        var response = await client.GetAsync("/api/health", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
+        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public class HealthEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var client = factory.CreateClient();
 
-        var version = await client.GetFromJsonAsync<VersionInfo>("/api/version");
+        var version = await client.GetFromJsonAsync<VersionInfo>("/api/version", TestContext.Current.CancellationToken);
 
         Assert.NotNull(version);
         Assert.False(string.IsNullOrWhiteSpace(version.Version));
