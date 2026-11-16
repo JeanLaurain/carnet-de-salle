@@ -37,6 +37,11 @@ updates:
   - package-ecosystem: docker
     directories: ["/api", "/web"]
     schedule: { interval: weekly, day: monday }
+    ignore:
+      # Le projet reste sur .NET 10 (LTS) : changer de version majeure se fait dans un ticket dédié
+      # (TargetFramework, global.json, paquets, CI et Dockerfile ensemble), pas image par image.
+      - dependency-name: "dotnet/*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker-compose
     directory: /deploy

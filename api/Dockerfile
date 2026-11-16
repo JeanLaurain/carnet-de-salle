@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Image de l'API : build avec le SDK .NET 10, exécution sur l'image ASP.NET (utilisateur non root).
 
-FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY nuget.config ./
 COPY src/CarnetDeSalle.Api/CarnetDeSalle.Api.csproj src/CarnetDeSalle.Api/
