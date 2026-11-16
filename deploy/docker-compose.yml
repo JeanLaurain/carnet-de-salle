@@ -17,7 +17,7 @@ services:
     # SQL Server 2019 : sur ce NAS (noyau Synology 4.4, processeur sans AVX), la 2022 se fige et la 2025
     # plante au démarrage (docs/deploiement-nas.md, étape 1). MSSQL_IMAGE dans .env pour en changer ;
     # une base 2019 peut passer à une version plus récente, pas l'inverse.
-    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2019-latest}
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest}
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"
