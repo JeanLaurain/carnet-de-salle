@@ -46,3 +46,8 @@ updates:
   - package-ecosystem: docker-compose
     directory: /deploy
     schedule: { interval: monthly }
+    ignore:
+      # SQL Server reste en 2019 : sur le NAS (noyau Synology 4.4, processeur sans AVX), la 2022 se fige
+      # et la 2025 plante au démarrage (docs/deploiement-nas.md, étape 1). La CI ne peut pas le voir :
+      # elle tourne sur les machines de GitHub. Le tag 2019-latest suit déjà les mises à jour cumulatives.
+      - dependency-name: "mssql/server"
