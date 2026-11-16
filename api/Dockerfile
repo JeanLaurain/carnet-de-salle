@@ -9,7 +9,7 @@ RUN dotnet restore src/CarnetDeSalle.Api/CarnetDeSalle.Api.csproj
 COPY src/ src/
 RUN dotnet publish src/CarnetDeSalle.Api/CarnetDeSalle.Api.csproj -c Release -o /app/publish --no-restore -p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 ARG APP_VERSION=dev
 ENV App__Version=${APP_VERSION} \
     ASPNETCORE_HTTP_PORTS=8080
